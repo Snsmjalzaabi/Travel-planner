@@ -1,0 +1,37 @@
+name: foxory_mobile
+description: Foxory Travel & Life — your personal travel and life ops companion
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.13.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  # Data & Storage
+  sqflite: ^2.4.1
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  shared_preferences: ^2.3.5
+  # UI
+  flutter_slidable: ^3.1.1
+  # Networking & Sync
+  http: ^1.2.2
+  # Date/time
+  intl: ^0.19.0
+  # Image handling
+  image_picker: ^1.1.2
+  # File handling
+  file_picker: ^8.1.7
+  # Icons
+  flutter_vector_icons: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
