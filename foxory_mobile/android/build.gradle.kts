@@ -4,6 +4,11 @@ allprojects {
         mavenCentral()
     }
 }
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
+}
+
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory.dir("../../build").get()
 rootProject.layout.buildDirectory.value(newBuildDir)
