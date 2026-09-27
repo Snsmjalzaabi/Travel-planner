@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme.dart';
-import '../core/app_settings.dart';
 import '../core/database_helper.dart';
 import 'ui/home_screen.dart';
 import 'ui/trips_screen.dart';
 import 'ui/planner_screen.dart';
-import 'ui/expenses_screen.dart' hide Text, Theme, SizedBox;
+import 'ui/expenses_screen.dart';
 import 'ui/more_screen.dart';
 
 class FoxoryApp extends StatefulWidget {
-  final AppSettings settings;
   final DatabaseHelper dbHelper;
+  final SharedPreferences prefs;
 
   const FoxoryApp({
     super.key,
-    required this.settings,
     required this.dbHelper,
+    required this.prefs,
   });
 
   @override
@@ -26,53 +24,19 @@ class FoxoryApp extends StatefulWidget {
 
 class _FoxoryAppState extends State<FoxoryApp> {
   int _currentIndex = 0;
-  late ThemeData _theme;
-  late AppThemeMode _appThemeMode;
-
-  @override
-  void initState() {
-    super.initState();
-    _appThemeMode = _resolveThemeMode();
-    _theme = _appThemeMode == AppThemeMode.dark ? AppTheme.darkTheme : AppTheme.lightTheme;
-  }
-
-  AppThemeMode _resolveThemeMode() {
-    if (widget.settings.useSystemTheme) {
-      return AppThemeMode.system;
-    }
-    return widget.settings.darkMode ? AppThemeMode.dark : AppThemeMode.light;
-  }
+  bool _isDark = true;
 
   void _onTabTapped(int index) {
     setState(() => _currentIndex = index);
   }
 
-  Future<void> _toggleTheme() async {
-    if (_appThemeMode == AppThemeMode.system) {
-      setState(() {
-        _appThemeMode = AppThemeMode.dark;
-        _theme = AppTheme.darkTheme;
-      });
-      widget.settings.darkMode = true;
-      widget.settings.useSystemTheme = false;
-    } else if (_appThemeMode == AppThemeMode.dark) {
-      setState(() {
-        _appThemeMode = AppThemeMode.light;
-        _theme = AppTheme.lightTheme;
-      });
-      widget.settings.darkMode = false;
-      widget.settings.useSystemTheme = false;
-    } else {
-      setState(() {
-        _appThemeMode = AppThemeMode.system;
-        _theme = Theme.of(context).brightness == Brightness.dark
-            ? AppTheme.darkTheme
-            : AppTheme.lightTheme;
-      });
-      widget.settings.useSystemTheme = true;
-    }
-    final prefs = await SharedPreferences.getInstance();
-    await widget.settings.save(prefs);
+  void _toggleTheme() {
+    setState(() => _isDark = !_isDark);
+    _saveTheme();
+  }
+
+  Future<void> _saveTheme() async {
+    await widget.prefs.setBool('dark_mode', _isDark);
   }
 
   @override
@@ -80,37 +44,31 @@ class _FoxoryAppState extends State<FoxoryApp> {
     return MaterialApp(
       title: 'Foxory',
       debugShowCheckedModeBanner: false,
-      theme: _theme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: _appThemeMode == AppThemeMode.system
-          ? ThemeMode.system
-          : _appThemeMode == AppThemeMode.dark
-              ? ThemeMode.dark
-              : ThemeMode.light,
+      themeMode: _isDark ? ThemeMode.dark : ThemeMode.light,
       home: MainShell(
         currentIndex: _currentIndex,
         onTabTapped: _onTabTapped,
         onThemeToggle: _toggleTheme,
-        appThemeMode: _appThemeMode,
+        isDark: _isDark,
       ),
     );
   }
 }
 
-enum AppThemeMode { light, dark, system }
-
 class MainShell extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTabTapped;
   final Function() onThemeToggle;
-  final AppThemeMode appThemeMode;
+  final bool isDark;
 
   const MainShell({
     super.key,
     required this.currentIndex,
     required this.onTabTapped,
     required this.onThemeToggle,
-    required this.appThemeMode,
+    required this.isDark,
   });
 
   @override
@@ -124,7 +82,6 @@ class MainShell extends StatelessWidget {
             icon: const Icon(Icons.sync),
             tooltip: 'Sync with Pi',
             onPressed: () {
-              // Navigate to sync screen or show sync dialog
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Sync coming soon')),
               );
@@ -191,22 +148,8 @@ class MainShell extends StatelessWidget {
   }
 
   Widget _buildThemeButton() {
-    IconData icon;
-    String tooltip;
-    switch (appThemeMode) {
-      case AppThemeMode.light:
-        icon = Icons.light_mode;
-        tooltip = 'Light mode';
-        break;
-      case AppThemeMode.dark:
-        icon = Icons.dark_mode;
-        tooltip = 'Dark mode';
-        break;
-      case AppThemeMode.system:
-        icon = Icons.brightness_auto;
-        tooltip = 'Follow system';
-        break;
-    }
+    final icon = isDark ? Icons.light_mode : Icons.dark_mode;
+    final tooltip = isDark ? 'Light mode' : 'Dark mode';
     return IconButton(
       icon: Icon(icon),
       tooltip: tooltip,
@@ -341,7 +284,7 @@ class MainShell extends StatelessWidget {
                     if (controller.text.isNotEmpty) {
                       final db = DatabaseHelper();
                       db.insert('notes', {
-                        'title': controller.text.split('\n').first.trim(),
+                        'title': controller.text.split('\\n').first.trim(),
                         'content': controller.text,
                         'tags': '',
                         'category': 'quick',

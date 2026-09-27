@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/models.dart';
-import '../core/database_helper.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../core/database_helper.dart';
+import '../models/models.dart';
 
 class CreateTripDialog extends StatefulWidget {
   final Function(Trip) onTripCreated;
-
   const CreateTripDialog({super.key, required this.onTripCreated});
 
   @override
@@ -17,432 +18,810 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
   final _nameCtrl = TextEditingController();
   final _originCtrl = TextEditingController();
   final _destCtrl = TextEditingController();
-  final _departureCtrl = TextEditingController();
-  final _returnCtrl = TextEditingController();
-
-  String _originCountry = 'United Arab Emirates';
-  String _destCountry = '';
-  double? _originLat;
-  double? _originLon;
-  double? _destLat;
-  double? _destLon;
-
-  int _travelers = 1;
-  String _baseCurrency = 'USD';
-  String _transportType = 'flight';
-  String _status = 'IDEA';
+  final _originCountryCtrl = TextEditingController();
+  final _destCountryCtrl = TextEditingController();
+  final _destLatLngCtrl = TextEditingController();
 
   DateTime _departure = DateTime.now().add(const Duration(days: 30));
   DateTime _returnDate = DateTime.now().add(const Duration(days: 37));
+  int _travelers = 1;
+  String _transport = 'flight';
+  String _status = 'planning';
+  String _baseCurrency = 'USD';
+  double _totalBudget = 0;
+  String? _destinationImage;
+  bool _gotCurrency = false;
+  bool _showPersonal = false;
+  bool _showAdvanced = false;
 
-  final bool _autoGeocode = true;
+  // Personal fields (shown when user opts in)
+  String _flightType = 'round_trip';
+  String _flightClass = 'economy';
+  String _accommodationType = 'hotel';
 
-
-  final List<String> _currencies = [
-    'USD', 'EUR', 'GBP', 'AED', 'INR', 'JPY', 'CNY', 'KRW', 'SGD', 'AUD', 'CAD',
+  static const _countries = [
+    'AF','AL','DZ','AD','AO','AG','AR','AM','AU','AT','AZ','BS','BH','BD','BB','BY','BE','BZ','BJ','BT',
+    'BO','BA','BW','BR','BN','BG','BF','BI','CV','KH','CM','CA','CF','TD','CL','CN','CO','KM','CG','CD',
+    'CR','HR','CU','CY','CZ','DK','DJ','DM','DO','EC','EG','SV','GQ','ER','EE','SZ','ET','FJ','FI','FR',
+    'GA','GM','GE','DE','GH','GR','GD','GT','GN','GY','HT','HN','HU','IS','IN','ID','IR','IQ','IE','IL',
+    'IT','JM','JP','JO','KZ','KE','KI','KW','KG','LA','LV','LB','LS','LR','LY','LI','LT','LU','MG','MW',
+    'MY','MV','ML','MT','MH','MR','MU','MX','FM','MD','MC','MN','ME','MA','MZ','MM','NA','NR','NP','NL',
+    'NZ','NI','NE','NG','MK','NO','OM','PK','PW','PA','PG','PY','PE','PH','PL','PT','QA','RO','RU','RW',
+    'KN','LC','VC','WS','SM','ST','SA','SN','RS','SC','SL','SG','SK','SI','SB','SO','ZA','KR','SS','ES',
+    'LK','SD','SR','SE','CH','SY','TW','TJ','TZ','TH','TL','TG','TO','TT','TN','TR','TM','TV','UG','UA',
+    'AE','GB','US','UY','UZ','VU','VE','VN','YE','ZM','ZW',
   ];
-
-  final List<String> _transportOptions = [
-    'flight', 'car', 'train', 'bus', 'boat', 'mixed',
-  ];
-
-  final Map<String, String> _transportLabels = {
-    'flight': 'Flight',
-    'car': 'Road Trip',
-    'train': 'Train',
-    'bus': 'Bus',
-    'boat': 'Cruise/Ferry',
-    'mixed': 'Mixed',
-  };
-
-  final Map<String, String> _statusLabels = {
-    'IDEA': 'Idea',
-    'PLANNING': 'Planning',
-    'READY': 'Ready',
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    _departureCtrl.text = DateFormat('yyyy-MM-dd').format(_departure);
-    _returnCtrl.text = DateFormat('yyyy-MM-dd').format(_returnDate);
-  }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _originCtrl.dispose();
     _destCtrl.dispose();
-    _departureCtrl.dispose();
-    _returnCtrl.dispose();
+    _originCountryCtrl.dispose();
+    _destCountryCtrl.dispose();
+    _destLatLngCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _selectDeparture() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _departure,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-    );
-    if (date != null) {
-      setState(() {
-        _departure = date;
-        _departureCtrl.text = DateFormat('yyyy-MM-dd').format(date);
-        // Auto-adjust return date
-        if (_returnDate.isBefore(date.add(const Duration(days: 1)))) {
-          _returnDate = date.add(const Duration(days: 7));
-          _returnCtrl.text = DateFormat('yyyy-MM-dd').format(_returnDate);
-        }
-      });
-    }
+  List<String> _countryList() {
+    return [
+      'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan',
+      'Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi',
+      'Cabo Verde','Cambodia','Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica','Côte d\'Ivoire','Croatia','Cuba','Cyprus','Czech Republic',
+      'Denmark','Djibouti','Dominican Republic',
+      'Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia',
+      'Fiji','Finland','France',
+      'Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau',
+      'Guyana',
+      'Haiti','Honduras','Hungary',
+      'Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy',
+      'Jamaica','Japan','Jordan',
+      'Kazakhstan','Kenya','Kiribati','Kuwait','Kyrgyzstan',
+      'Laos','Latvia','Lebanon','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg',
+      'Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar',
+      'Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway',
+      'Oman',
+      'Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal',
+      'Qatar',
+      'Romania','Russia','Rwanda',
+      'Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','São Tomé and Príncipe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria',
+      'Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu',
+      'Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan',
+      'Vanuatu','Vatican City','Venezuela','Vietnam',
+      'Yemen',
+      'Zambia','Zimbabwe',
+    ];
   }
 
-  Future<void> _selectReturn() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _returnDate,
-      firstDate: _departure.add(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-    );
-    if (date != null) {
-      setState(() {
-        _returnDate = date;
-        _returnCtrl.text = DateFormat('yyyy-MM-dd').format(date);
-      });
-    }
-  }
-
-  void _geocodeOrigin() {
-    // Simple geocoding simulation - in real app would use GeocodingService
-    final query = _originCtrl.text.toLowerCase();
-    setState(() {
-      if (query.contains('abu dhabi') || query.contains('dubai')) {
-        _originLat = 24.4539;
-        _originLon = 54.3772;
-        _originCountry = 'United Arab Emirates';
-      } else if (query.contains('london')) {
-        _originLat = 51.5074;
-        _originLon = -0.1278;
-        _originCountry = 'United Kingdom';
-      } else if (query.contains('paris')) {
-        _originLat = 48.8566;
-        _originLon = 2.3522;
-        _originCountry = 'France';
-      } else if (query.contains('new york')) {
-        _originLat = 40.7128;
-        _originLon = -74.0060;
-        _originCountry = 'United States';
-      } else if (query.contains('tokyo')) {
-        _originLat = 35.6762;
-        _originLon = 139.6503;
-        _originCountry = 'Japan';
-      } else if (query.contains('bangkok')) {
-        _originLat = 13.7563;
-        _originLon = 100.5018;
-        _originCountry = 'Thailand';
-      } else {
-        _originLat = 24.0;
-        _originLon = 54.0;
-        _originCountry = 'Unknown';
-      }
-    });
-  }
-
-  void _geocodeDestination() {
-    final query = _destCtrl.text.toLowerCase();
-    setState(() {
-      if (query.contains('abu dhabi') || query.contains('dubai')) {
-        _destLat = 24.4539;
-        _destLon = 54.3772;
-        _destCountry = 'United Arab Emirates';
-      } else if (query.contains('tashkent')) {
-        _destLat = 41.2995;
-        _destLon = 69.2401;
-        _destCountry = 'Uzbekistan';
-      } else if (query.contains('london')) {
-        _destLat = 51.5074;
-        _destLon = -0.1278;
-        _destCountry = 'United Kingdom';
-      } else if (query.contains('paris')) {
-        _destLat = 48.8566;
-        _destLon = 2.3522;
-        _destCountry = 'France';
-      } else if (query.contains('new york')) {
-        _destLat = 40.7128;
-        _destLon = -74.0060;
-        _destCountry = 'United States';
-      } else if (query.contains('tokyo')) {
-        _destLat = 35.6762;
-        _destLon = 139.6503;
-        _destCountry = 'Japan';
-      } else if (query.contains('khartoum')) {
-        _destLat = 15.5007;
-        _destLon = 32.5599;
-        _destCountry = 'Sudan';
-      } else {
-        _destLat = 41.0;
-        _destLon = 69.0;
-        _destCountry = _destCountry;
-      }
-    });
-  }
-
-  Future<void> _createTrip() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final trip = Trip(
-      name: _nameCtrl.text,
-      originName: _originCtrl.text,
-      originLat: _originLat,
-      originLon: _originLon,
-      originCountry: _originCountry,
-      destName: _destCtrl.text,
-      destLat: _destLat,
-      destLon: _destLon,
-      destCountry: _destCountry.isEmpty ? 'Unknown' : _destCountry,
-      departure: _departure,
-      returnDate: _returnDate,
-      travelers: _travelers,
-      baseCurrency: _baseCurrency,
-      transportType: _transportType,
-      status: _status,
-    );
-
-    final db = DatabaseHelper();
-    final id = await db.insert('trips', trip.toMap());
-
-    final completeTrip = trip.copyWith(id: id);
-
-    setState(() {});
-
-    widget.onTripCreated(completeTrip);
-
-    if (context.mounted) {
-      Navigator.pop(context);
-    }
-  }
+  final Map<String, String> _currencyMap = {
+    'USD': '\$',
+    'EUR': '€',
+    'GBP': '£',
+    'AED': 'د.إ',
+    'SAR': '﷼',
+    'INR': '₹',
+    'TRY': '₺',
+    'BRL': 'R\$',
+    'CAD': 'C\$',
+    'AUD': 'A\$',
+    'JPY': '¥',
+    'CNY': '¥',
+    'KRW': '₩',
+    'SGD': 'S\$',
+  };
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        top: 16,
-        left: 16,
-        right: 16,
+        left: 20,
+        right: 20,
+        top: kIsWeb ? 16 : MediaQuery.of(context).padding.top + 12,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Create New Trip',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 16),
-            Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Trip name
-                  TextFormField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Trip Name *',
-                      hintText: 'e.g., Summer in Europe',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+      child: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
                   ),
-                  const SizedBox(height: 12),
-                  // Origin
-                  TextFormField(
-                    controller: _originCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Origin *',
-                      hintText: 'e.g., Abu Dhabi',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.my_location),
-                        onPressed: _geocodeOrigin,
-                        tooltip: 'Use my location',
-                      ),
+                ),
+                const SizedBox(height: 16),
+                // Header
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('New Trip', style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600)),
                     ),
-                    onChanged: (v) {
-                      if (_autoGeocode) _geocodeOrigin();
-                    },
-                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Country: $_originCountry',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Personal info toggle
+                InkWell(
+                  onTap: () => setState(() => _showPersonal = !_showPersonal),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _showPersonal ? Icons.visibility : Icons.visibility_off,
+                          size: 18,
+                          color: colorScheme.primary,
                         ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Destination
-                  TextFormField(
-                    controller: _destCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Destination *',
-                      hintText: 'e.g., Tashkent',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.my_location),
-                        onPressed: _geocodeDestination,
-                        tooltip: 'Use my location',
-                      ),
-                    ),
-                    onChanged: (v) {
-                      if (_autoGeocode) _geocodeDestination();
-                    },
-                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Country: ${_destCountry.isEmpty ? "Not set" : _destCountry}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Dates
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: _selectDeparture,
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Departure *',
-                              border: OutlineInputBorder(),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Personal Information',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: _showPersonal ? colorScheme.onSurface : colorScheme.onSurface.withOpacity(0.5),
                             ),
-                            child: Text(DateFormat('MMM d, y').format(_departure)),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: InkWell(
-                          onTap: _selectReturn,
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Return *',
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Text(DateFormat('MMM d, y').format(_returnDate)),
-                          ),
+                        Icon(
+                          _showPersonal ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          size: 18,
+                          color: colorScheme.primary,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                ),
+                if (_showPersonal) ...[
+                  const SizedBox(height: 12),
+                  _buildPersonalFields(colorScheme),
                   const SizedBox(height: 8),
-                  Text(
-                    '${_departure.difference(DateTime.now()).inDays} days until departure · ${_returnDate.difference(_departure).inDays} nights',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                        ),
+                ],
+                // Trip name
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Trip Name',
+                    hintText: 'Summer Japan Adventure',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.label_outline),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    filled: true,
+                    fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
                   ),
-                  const SizedBox(height: 12),
-                  // Travelers + Currency row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          initialValue: _travelers,
-                          decoration: const InputDecoration(
-                            labelText: 'Travelers',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: List.generate(10, (i) => i + 1)
-                              .map((n) => DropdownMenuItem(
-                                    value: n,
-                                    child: Text('$n'),
-                                  ))
-                              .toList(),
-                          onChanged: (v) {
-                            if (v != null) setState(() => _travelers = v);
-                          },
+                  style: GoogleFonts.inter(fontSize: 14),
+                  validator: (v) => v == null || v.isEmpty ? 'Trip name is required' : null,
+                ),
+                const SizedBox(height: 12),
+                // Destination + origin row
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _originCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'From (City)',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.flight_takeoff),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                        ),
+                        style: GoogleFonts.inter(fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _destCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'To (City)',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.flight_land),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                        ),
+                        style: GoogleFonts.inter(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Countries row
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _originCountryCtrl.text.isEmpty ? null : _originCountryCtrl.text,
+                        decoration: InputDecoration(
+                          labelText: 'Origin Country',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                        ),
+                        items: _countries.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 13)))).toList(),
+                        onChanged: (v) {
+                          if (v != null) _originCountryCtrl.text = v;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _destCountryCtrl.text.isEmpty ? null : _destCountryCtrl.text,
+                        decoration: InputDecoration(
+                          labelText: 'Destination Country',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                        ),
+                        items: _countries.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 13)))).toList(),
+                        onChanged: (v) {
+                          if (v != null) _destCountryCtrl.text = v;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Currency
+                TextFormField(
+                  controller: TextEditingController(text: _baseCurrency),
+                  decoration: InputDecoration(
+                    labelText: 'Base Currency',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.attach_money),
+                    hintText: 'e.g. USD, EUR, AED',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    filled: true,
+                    fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  ),
+                  style: GoogleFonts.inter(fontSize: 14),
+                  onChanged: (v) {
+                    if (v.length <= 3) {
+                      _baseCurrency = v.toUpperCase();
+                      setState(() {});
+                    }
+                  },
+                  validator: (v) => v == null || v.isEmpty ? 'Currency is required' : null,
+                ),
+                const SizedBox(height: 12),
+                // Dates
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final d = await showDatePicker(context: context, initialDate: _departure, firstDate: DateTime.now().subtract(const Duration(days: 30)), lastDate: DateTime.now().add(const Duration(days: 730)));
+                          if (d != null) setState(() => _departure = d);
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: InputContainer(
+                          label: 'Departure',
+                          icon: Icons.flight_takeoff,
+                          child: Text(DateFormat('MMM d, y').format(_departure), style: GoogleFonts.inter(fontSize: 14)),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final d = await showDatePicker(context: context, initialDate: _returnDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 730)));
+                          if (d != null) setState(() => _returnDate = d);
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: InputContainer(
+                          label: 'Return',
+                          icon: Icons.flight_land,
+                          child: Text(DateFormat('MMM d, y').format(_returnDate), style: GoogleFonts.inter(fontSize: 14)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Travelers + Transport row
+                Row(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(right: 2),
+                            child: Text('👥', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _travelers,
+                              decoration: InputDecoration(
+                                labelText: 'Travelers',
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                border: const OutlineInputBorder(),
+                                filled: true,
+                                fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                              ),
+                              items: List.generate(10, (i) => i + 1).map((n) => DropdownMenuItem(value: n, child: Text('$n'))).toList(),
+                              onChanged: (v) {
+                                if (v != null) setState(() => _travelers = v);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _transport,
+                        decoration: InputDecoration(
+                          labelText: 'Transport',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                        ),
+                        items: [
+                          DropdownMenuItem(value: 'flight', child: Text('✈️ Flight', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'train', child: Text('🚄 Train', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'car', child: Text('🚗 Car', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'bus', child: Text('🚌 Bus', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'boat', child: Text('🚢 Boat', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'cruise', child: Text('🛳️ Cruise', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'bike', child: Text('🚲 Bike', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'walk', child: Text('🚶 Walk', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'cabin', child: Text('🏕️ Cabin', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'rv', child: Text('🚐 RV', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'taxi', child: Text('🚕 Taxi', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'ride', child: Text('🚘 Ride', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'motorbike', child: Text('🏍️ Motorbike', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'van', child: Text('🚐 Van', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'yacht', child: Text('⛵ Yacht', style: GoogleFonts.inter(fontSize: 13))),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _transport = v);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Status + Budget row
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _status,
+                        decoration: InputDecoration(
+                          labelText: 'Status',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                        ),
+                        items: [
+                          DropdownMenuItem(value: 'idea', child: Text('💡 Idea', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'planning', child: Text('📋 Planning', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'ready', child: Text('🟢 Ready', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'active', child: Text('✅ Active', style: GoogleFonts.inter(fontSize: 13))),
+                          DropdownMenuItem(value: 'completed', child: Text('🏁 Completed', style: GoogleFonts.inter(fontSize: 13))),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _status = v);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: _totalBudget > 0 ? _totalBudget.toStringAsFixed(2) : '',
+                        decoration: InputDecoration(
+                          labelText: 'Budget (optional)',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.attach_money),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: GoogleFonts.inter(fontSize: 14),
+                        onChanged: (v) {
+                          setState(() {
+                            _totalBudget = double.tryParse(v) ?? 0;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Destination Image URL
+                TextFormField(
+                  controller: _destLatLngCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Destination Image URL (optional)',
+                    hintText: 'https://... (unsplash source)',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.image),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    filled: true,
+                    fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  ),
+                  style: GoogleFonts.inter(fontSize: 13),
+                  onChanged: (_) => _gotCurrency = false,
+                ),
+                const SizedBox(height: 16),
+                // Advanced toggle
+                InkWell(
+                  onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _showAdvanced ? Icons.visibility : Icons.visibility_off,
+                          size: 18,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Advanced Options',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: _showAdvanced ? colorScheme.onSurface : colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          _showAdvanced ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          size: 18,
+                          color: colorScheme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_showAdvanced) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: _baseCurrency,
-                          decoration: const InputDecoration(
-                            labelText: 'Base Currency',
-                            border: OutlineInputBorder(),
+                          value: _flightType,
+                          decoration: InputDecoration(
+                            labelText: 'Flight Type',
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
                           ),
-                          items: _currencies.map((c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c),
-                              ))
-                              .toList(),
+                          items: [
+                            DropdownMenuItem(value: 'round_trip', child: Text('Round Trip', style: GoogleFonts.inter(fontSize: 13))),
+                            DropdownMenuItem(value: 'one_way', child: Text('One Way', style: GoogleFonts.inter(fontSize: 13))),
+                            DropdownMenuItem(value: 'multi_city', child: Text('Multi-City', style: GoogleFonts.inter(fontSize: 13))),
+                          ],
                           onChanged: (v) {
-                            if (v != null) setState(() => _baseCurrency = v);
+                            if (v != null) setState(() => _flightType = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _flightClass,
+                          decoration: InputDecoration(
+                            labelText: 'Class',
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 'economy', child: Text('Economy', style: GoogleFonts.inter(fontSize: 13))),
+                            DropdownMenuItem(value: 'premium', child: Text('Premium', style: GoogleFonts.inter(fontSize: 13))),
+                            DropdownMenuItem(value: 'business', child: Text('Business', style: GoogleFonts.inter(fontSize: 13))),
+                            DropdownMenuItem(value: 'first', child: Text('First', style: GoogleFonts.inter(fontSize: 13))),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => _flightClass = v);
                           },
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // Transport type
                   DropdownButtonFormField<String>(
-                    initialValue: _transportType,
-                    decoration: const InputDecoration(
-                      labelText: 'Transport Type',
-                      border: OutlineInputBorder(),
+                    value: _accommodationType,
+                    decoration: InputDecoration(
+                      labelText: 'Accommodation Type',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
                     ),
-                    items: _transportOptions.map((t) => DropdownMenuItem(
-                          value: t,
-                          child: Text(_transportLabels[t] ?? t),
-                        )).toList(),
+                    items: [
+                      DropdownMenuItem(value: 'hotel', child: Text('Hotel', style: GoogleFonts.inter(fontSize: 13))),
+                      DropdownMenuItem(value: 'hostel', child: Text('Hostel', style: GoogleFonts.inter(fontSize: 13))),
+                      DropdownMenuItem(value: 'airbnb', child: Text('Airbnb', style: GoogleFonts.inter(fontSize: 13))),
+                      DropdownMenuItem(value: 'resort', child: Text('Resort', style: GoogleFonts.inter(fontSize: 13))),
+                      DropdownMenuItem(value: 'guesthouse', child: Text('Guesthouse', style: GoogleFonts.inter(fontSize: 13))),
+                      DropdownMenuItem(value: 'camping', child: Text('Camping', style: GoogleFonts.inter(fontSize: 13))),
+                      DropdownMenuItem(value: 'cruise', child: Text('Cruise', style: GoogleFonts.inter(fontSize: 13))),
+                      DropdownMenuItem(value: 'rv', child: Text('RV', style: GoogleFonts.inter(fontSize: 13))),
+                      DropdownMenuItem(value: 'rental', child: Text('Rental', style: GoogleFonts.inter(fontSize: 13))),
+                    ],
                     onChanged: (v) {
-                      if (v != null) setState(() => _transportType = v);
+                      if (v != null) setState(() => _accommodationType = v);
                     },
-                  ),
-                  const SizedBox(height: 12),
-                  // Status
-                  DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    decoration: const InputDecoration(
-                      labelText: 'Status',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _statusLabels.entries.map((e) => DropdownMenuItem(
-                          value: e.key,
-                          child: Text(e.value),
-                        )).toList(),
-                    onChanged: (v) {
-                      if (v != null) setState(() => _status = v);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _createTrip,
-                      child: const Text('Create Trip'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
                   ),
                 ],
+                const SizedBox(height: 20),
+                // Save button
+                ElevatedButton(
+                  onPressed: _save,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text('Save Trip', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPersonalFields(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _flightType,
+                decoration: InputDecoration(
+                  labelText: 'Flight Type',
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                ),
+                items: [
+                  DropdownMenuItem(value: 'round_trip', child: Text('Round Trip', style: GoogleFonts.inter(fontSize: 13))),
+                  DropdownMenuItem(value: 'one_way', child: Text('One Way', style: GoogleFonts.inter(fontSize: 13))),
+                  DropdownMenuItem(value: 'multi_city', child: Text('Multi-City', style: GoogleFonts.inter(fontSize: 13))),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _flightType = v);
+                },
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _flightClass,
+                decoration: InputDecoration(
+                  labelText: 'Class',
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                ),
+                items: [
+                  DropdownMenuItem(value: 'economy', child: Text('Economy', style: GoogleFonts.inter(fontSize: 13))),
+                  DropdownMenuItem(value: 'premium', child: Text('Premium', style: GoogleFonts.inter(fontSize: 13))),
+                  DropdownMenuItem(value: 'business', child: Text('Business', style: GoogleFonts.inter(fontSize: 13))),
+                  DropdownMenuItem(value: 'first', child: Text('First', style: GoogleFonts.inter(fontSize: 13))),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _flightClass = v);
+                },
+              ),
+            ),
           ],
         ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          value: _accommodationType,
+          decoration: InputDecoration(
+            labelText: 'Accommodation Type',
+            border: const OutlineInputBorder(),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            filled: true,
+            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          ),
+          items: [
+            DropdownMenuItem(value: 'hotel', child: Text('Hotel', style: GoogleFonts.inter(fontSize: 13))),
+            DropdownMenuItem(value: 'hostel', child: Text('Hostel', style: GoogleFonts.inter(fontSize: 13))),
+            DropdownMenuItem(value: 'airbnb', child: Text('Airbnb', style: GoogleFonts.inter(fontSize: 13))),
+            DropdownMenuItem(value: 'resort', child: Text('Resort', style: GoogleFonts.inter(fontSize: 13))),
+            DropdownMenuItem(value: 'guesthouse', child: Text('Guesthouse', style: GoogleFonts.inter(fontSize: 13))),
+            DropdownMenuItem(value: 'camping', child: Text('Camping', style: GoogleFonts.inter(fontSize: 13))),
+            DropdownMenuItem(value: 'cruise', child: Text('Cruise', style: GoogleFonts.inter(fontSize: 13))),
+            DropdownMenuItem(value: 'rv', child: Text('RV', style: GoogleFonts.inter(fontSize: 13))),
+            DropdownMenuItem(value: 'rental', child: Text('Rental', style: GoogleFonts.inter(fontSize: 13))),
+          ],
+          onChanged: (v) {
+            if (v != null) setState(() => _accommodationType = v);
+          },
+        ),
+      ],
+    );
+  }
+
+  String _transportLabel(String t) {
+    switch (t) {
+      case 'flight': return '✈️ Flight';
+      case 'train': return '🚄 Train';
+      case 'car': return '🚗 Car';
+      case 'bus': return '🚌 Bus';
+      case 'boat': return '🚢 Boat';
+      case 'cruise': return '🛳️ Cruise';
+      case 'bike': return '🚲 Bike';
+      case 'walk': return '🚶 Walk';
+      case 'cabin': return '🏕️ Cabin';
+      case 'rv': return '🚐 RV';
+      case 'taxi': return '🚕 Taxi';
+      case 'ride': return '🚘 Ride';
+      case 'motorbike': return '🏍️ Motorbike';
+      case 'van': return '🚐 Van';
+      case 'yacht': return '⛵ Yacht';
+      default: return 'Flight';
+    }
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final name = _nameCtrl.text.trim();
+    final origin = _originCtrl.text.trim();
+    final dest = _destCtrl.text.trim();
+    final originCountry = _originCountryCtrl.text.trim();
+    final destCountry = _destCountryCtrl.text.trim();
+
+    if (name.isEmpty) return;
+
+    final trip = Trip(
+      name: name,
+      originName: origin.isEmpty ? 'Unknown' : origin,
+      destName: dest.isEmpty ? 'Unknown' : dest,
+      destinationImage: _destinationImage ?? _buildFallbackImage(),
+      originCountry: originCountry.isEmpty ? 'Unknown' : originCountry,
+      destCountry: destCountry.isEmpty ? 'Unknown' : destCountry,
+      departure: _departure,
+      returnDate: _returnDate,
+      travelers: _travelers,
+      transport: _transport,
+      transportLabel: _transportLabel(_transport),
+      status: _status,
+      baseCurrency: _baseCurrency,
+      totalBudget: _totalBudget,
+      personalInfo: _showPersonal
+          ? PersonalInfo(
+              flightType: _flightType,
+              flightClass: _flightClass,
+              accommodationType: _accommodationType,
+            )
+          : null,
+    );
+
+    widget.onTripCreated(trip);
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Trip Created'),
+        content: Text('"${trip.name}" has been saved.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(c);
+              Navigator.pop(context);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _buildFallbackImage() {
+    // Generate a deterministic-ish Unsplash URL based on destination country name
+    final name = _destCtrl.text.trim().toLowerCase().replaceAll(' ', '-').replaceAll(RegExp(r'[^a-z0-9-]'), '');
+    if (name.isEmpty) return '';
+    // Use Ambience image from Unsplash
+    return 'https://images.unsplash.com/photo-(\${_getImageIdFor(name)})?w=800&q=80';
+  }
+
+  String _getImageIdFor(String name) {
+    // Hash-like fallback to pick a stable image per name
+    final hashes = {
+      'tokyo': '1540959733-f16614c8edf0',
+      'paris': '1502602898657-3e91760cbb34',
+      'london': '1513635269975-57669614be8c',
+      'dubai': '1583417319058-ip5a242c7b47',
+      'new-york': '1496442226666-8d4d0e62e6e9',
+      'bangkok': '1508009379798-6350f4b0c0a2',
+      'singapore': '1566403303480-66d178c50455',
+      'istanbul': '1529274662728-490d81076687',
+      'sydney': '1506973320985-6a0f6ea6d0b9',
+      'barcelona': '1583417319058-ip5a242c7b47',
+    };
+    return hashes[name] ?? '1502602898657-3e91760cbb34';
+  }
+}
+
+class InputContainer extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Widget child;
+  const InputContainer({super.key, required this.label, required this.icon, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.4)),
+        borderRadius: BorderRadius.circular(12),
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: colorScheme.onSurface.withOpacity(0.5), size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: child),
+        ],
       ),
     );
   }

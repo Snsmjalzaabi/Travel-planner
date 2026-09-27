@@ -15,3 +15,4 @@ export 'task.dart';
 export 'file.dart';
 export 'sync_log.dart';
 export 'app_settings_model.dart';
+export 'personal_info.dart';

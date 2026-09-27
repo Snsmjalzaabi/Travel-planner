@@ -3,6 +3,7 @@ import 'hotel.dart';
 import 'flight.dart';
 import 'itinerary.dart';
 import 'packing.dart';
+import 'personal_info.dart';
 import 'package:flutter/material.dart';
 
 class Trip {
@@ -21,8 +22,8 @@ class Trip {
   final int travelers;
   final String baseCurrency;
   final double? baseRate;
-  final String transportType;
-  final String status; // IDEA, PLANNING, READY, ACTIVE, COMPLETED
+  final String transport;
+  final String status;
   final int readiness;
   final double? distance;
   final String? distanceType;
@@ -35,7 +36,10 @@ class Trip {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool syncEnabled;
-  final int syncStatus; // 0=none, 1=pending, 2=synced
+  final int syncStatus;
+  final String? destinationImage;
+  final String transportLabel;
+  final PersonalInfo? personalInfo;
 
   Trip({
     this.id,
@@ -53,7 +57,7 @@ class Trip {
     this.travelers = 1,
     this.baseCurrency = 'USD',
     this.baseRate,
-    this.transportType = 'flight',
+    required this.transport,
     this.status = 'IDEA',
     this.readiness = 0,
     this.distance,
@@ -62,6 +66,9 @@ class Trip {
     this.travelTimeSource,
     this.totalBudget = 0,
     this.distanceKm,
+    this.destinationImage,
+    this.transportLabel = 'Flight',
+    this.personalInfo,
     List<String>? attractions,
     List<String>? notes,
     DateTime? createdAt,
@@ -89,7 +96,7 @@ class Trip {
         'travelers': travelers,
         'base_currency': baseCurrency,
         'base_rate': baseRate,
-        'transport_type': transportType,
+        'transport': transport,
         'status': status,
         'readiness': readiness,
         'distance': distance,
@@ -98,6 +105,8 @@ class Trip {
         'travel_time_source': travelTimeSource,
         'total_budget': totalBudget,
         'distance_km': distanceKm,
+        'destination_image': destinationImage,
+        'transport_label': transportLabel,
         'attractions': attractions.join(','),
         'notes': notes.join(','),
         'created_at': createdAt.toIso8601String(),
@@ -122,7 +131,7 @@ class Trip {
         travelers: map['travelers'] as int? ?? 1,
         baseCurrency: map['base_currency'] as String? ?? 'USD',
         baseRate: map['base_rate'] as double?,
-        transportType: map['transport_type'] as String? ?? 'flight',
+        transport: map['transport'] as String? ?? 'flight',
         status: map['status'] as String? ?? 'IDEA',
         readiness: map['readiness'] as int? ?? 0,
         distance: map['distance'] as double?,
@@ -131,6 +140,12 @@ class Trip {
         travelTimeSource: map['travel_time_source'] as String?,
         totalBudget: map['total_budget'] as double? ?? 0,
         distanceKm: map['distance_km'] as double?,
+        destinationImage:
+            map['destination_image'] as String? ?? null,
+        transportLabel: map['transport_label'] as String? ?? 'Flight',
+        personalInfo: map['personal_info'] != null
+            ? PersonalInfo.fromMap(map['personal_info'] as Map<String, dynamic>)
+            : null,
         attractions: (map['attractions'] as String? ?? '')
             .split(',')
             .where((s) => s.isNotEmpty)
@@ -139,64 +154,21 @@ class Trip {
             .split(',')
             .where((s) => s.isNotEmpty)
             .toList(),
-        createdAt: DateTime.parse(map['created_at'] as String),
-        updatedAt: DateTime.parse(map['updated_at'] as String),
+        createdAt: DateTime.parse(map['created_at'] as String? ?? DateTime.now().toIso8601String()),
+        updatedAt: DateTime.parse(map['updated_at'] as String? ?? DateTime.now().toIso8601String()),
         syncEnabled: (map['sync_enabled'] as int? ?? 1) == 1,
         syncStatus: map['sync_status'] as int? ?? 0,
       );
 
-  static const String createTable = '''
-    CREATE TABLE IF NOT EXISTS "trips" (
-      "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-      "name" TEXT NOT NULL,
-      "origin_name" TEXT NOT NULL,
-      "origin_lat" REAL,
-      "origin_lon" REAL,
-      "origin_country" TEXT NOT NULL,
-      "dest_name" TEXT NOT NULL,
-      "dest_lat" REAL,
-      "dest_lon" REAL,
-      "dest_country" TEXT NOT NULL,
-      "departure" TEXT NOT NULL,
-      "return_date" TEXT NOT NULL,
-      "travelers" INTEGER DEFAULT 1,
-      "base_currency" TEXT DEFAULT 'USD',
-      "base_rate" REAL,
-      "transport_type" TEXT DEFAULT 'flight',
-      "status" TEXT DEFAULT 'IDEA',
-      "readiness" INTEGER DEFAULT 0,
-      "distance" REAL,
-      "distance_type" TEXT,
-      "travel_time" TEXT,
-      "travel_time_source" TEXT,
-      "total_budget" REAL DEFAULT 0,
-      "distance_km" REAL,
-      "attractions" TEXT DEFAULT '',
-      "notes" TEXT DEFAULT '',
-      "created_at" TEXT NOT NULL,
-      "updated_at" TEXT NOT NULL,
-      "sync_enabled" INTEGER DEFAULT 1,
-      "sync_status" INTEGER DEFAULT 0
-    )
-  ''';
-
   int get nights => returnDate.difference(departure).inDays;
 
-  String get transportLabel => {
-        'flight': 'Flight',
-        'car': 'Road Trip',
-        'train': 'Train',
-        'bus': 'Bus',
-        'boat': 'Cruise/Ferry',
-        'mixed': 'Mixed',
-      }[transportType] ?? transportType;
+  List<Hotel>? get hotels => null;
+  List<Flight>? get flights => null;
+  List<ItineraryDay>? get itineraryDays => null;
+  List<PackingItem>? get packingItems => null;
 
   List<Hotel>? get tripHotels => hotels;
   List<Flight>? get tripFlights => flights;
-  List<ItineraryDay>? get itineraryDays => null;
-  List<PackingItem>? get packingItems => null;
-  List<Hotel>? get hotels => null;
-  List<Flight>? get flights => null;
 
   Trip copyWith({
     int? id,
@@ -213,7 +185,7 @@ class Trip {
     int? travelers,
     String? baseCurrency,
     double? baseRate,
-    String? transportType,
+    String? transport,
     String? status,
     int? readiness,
     double? distance,
@@ -222,6 +194,9 @@ class Trip {
     String? travelTimeSource,
     double? totalBudget,
     double? distanceKm,
+    String? destinationImage,
+    String? transportLabel,
+    PersonalInfo? personalInfo,
     List<String>? attractions,
     List<String>? notes,
     DateTime? createdAt,
@@ -245,7 +220,7 @@ class Trip {
       travelers: travelers ?? this.travelers,
       baseCurrency: baseCurrency ?? this.baseCurrency,
       baseRate: baseRate ?? this.baseRate,
-      transportType: transportType ?? this.transportType,
+      transport: transport ?? this.transport,
       status: status ?? this.status,
       readiness: readiness ?? this.readiness,
       distance: distance ?? this.distance,
@@ -254,6 +229,9 @@ class Trip {
       travelTimeSource: travelTimeSource ?? this.travelTimeSource,
       totalBudget: totalBudget ?? this.totalBudget,
       distanceKm: distanceKm ?? this.distanceKm,
+      destinationImage: destinationImage ?? this.destinationImage,
+      transportLabel: transportLabel ?? this.transportLabel,
+      personalInfo: personalInfo ?? this.personalInfo,
       attractions: attractions ?? this.attractions,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,

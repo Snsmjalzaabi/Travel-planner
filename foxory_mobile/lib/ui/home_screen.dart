@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/models.dart';
 import '../core/database_helper.dart';
+import '../core/theme.dart';
 import '../widgets/quick_capture_widget.dart';
-import 'package:flutter/services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,30 +21,35 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Passport> _passports = [];
   bool _isLoading = true;
   String _greeting = '';
+  final ScrollController _scrollCtrl = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _loadData();
     _setGreeting();
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   void _setGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) {
-      _greeting = 'Good morning';
-    } else if (hour < 17) {
-      _greeting = 'Good afternoon';
-    } else {
-      _greeting = 'Good evening';
-    }
+    final h = DateTime.now().hour;
+    setState(() {
+      _greeting = h < 12
+          ? 'Good morning'
+          : h < 17
+              ? 'Good afternoon'
+              : 'Good evening';
+    });
   }
 
   Future<void> _loadData() async {
     final db = await DatabaseHelper().database;
     final now = DateTime.now();
-
-    // Upcoming trips
     final trips = await db.query(
       'trips',
       where: 'departure >= ? AND status != ?',
@@ -52,43 +58,25 @@ class _HomeScreenState extends State<HomeScreen> {
       limit: 3,
     );
     _upcomingTrips = trips.map((m) => Trip.fromMap(m)).toList();
-
-    // Recent trips (last 5)
-    final recentTrips = await db.query(
-      'trips',
-      orderBy: 'updated_at DESC',
-      limit: 5,
-    );
-    _recentTrips = recentTrips.map((m) => Trip.fromMap(m)).toList();
-
-    // Recent expenses
-    final expenses = await db.query(
-      'expenses',
-      orderBy: 'date DESC',
-      limit: 5,
-    );
-    _recentExpenses = expenses.map((m) => Expense.fromMap(m)).toList();
-
-    // Pending tasks
+    final trips2 = await db.query('trips', orderBy: 'updated_at DESC', limit: 5);
+    _recentTrips = trips2.map((m) => Trip.fromMap(m)).toList();
+    final exp = await db.query('expenses', orderBy: 'date DESC', limit: 5);
+    _recentExpenses = exp.map((m) => Expense.fromMap(m)).toList();
     final tasks = await db.query(
       'tasks',
-      where: "status = ? OR (status = ? AND due_date <= ?)",
-      whereArgs: ['todo', 'in_progress', now.toIso8601String()],
+      where: "status = 'todo' OR (status = 'in_progress' AND due_date <= ?)",
+      whereArgs: [now.toIso8601String()],
       orderBy: 'priority DESC, due_date ASC',
       limit: 5,
     );
     _pendingTasks = tasks.map((m) => Task.fromMap(m)).toList();
-
-    // Expiring passports
     final passports = await db.query(
       'passports',
-      where: 'expiring_soon = ? OR expired = ?',
-      whereArgs: [1, 1],
+      where: 'expiring_soon = 1 OR expired = 1',
       limit: 3,
     );
     _passports = passports.map((m) => Passport.fromMap(m)).toList();
-
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
@@ -97,48 +85,41 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: CustomScrollView(
+          controller: _scrollCtrl,
           slivers: [
+            SliverToBoxAdapter(child: _buildHeader()),
             SliverToBoxAdapter(
-              child: _buildHeader(),
+              child: QuickCaptureWidget(onCapture: _handleQuickCapture),
             ),
-            SliverToBoxAdapter(
-              child: QuickCaptureWidget(
-                onCapture: _handleQuickCapture,
-              ),
-            ),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 16),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
             if (_isLoading)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              )
+              const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
             else
               SliverList(
                 delegate: SliverChildListDelegate([
                   if (_upcomingTrips.isNotEmpty) ...[
-                    _buildSectionHeader('Upcoming Trips'),
-                    ..._upcomingTrips.map((t) => _buildTripCard(t)),
+                    _sectionHeader('Upcoming Trips'),
+                    ..._upcomingTrips.map((t) => _tripCard(t)).toList(),
                     const SizedBox(height: 16),
                   ],
                   if (_pendingTasks.isNotEmpty) ...[
-                    _buildSectionHeader('Pending Tasks'),
-                    ..._pendingTasks.map((t) => _buildTaskCard(t)),
+                    _sectionHeader('Pending Tasks'),
+                    ..._pendingTasks.map((t) => _taskCard(t)).toList(),
                     const SizedBox(height: 16),
                   ],
                   if (_recentExpenses.isNotEmpty) ...[
-                    _buildSectionHeader('Recent Expenses'),
-                    ..._recentExpenses.map((e) => _buildExpenseCard(e)),
+                    _sectionHeader('Recent Expenses'),
+                    ..._recentExpenses.map((e) => _expenseCard(e)).toList(),
                     const SizedBox(height: 16),
                   ],
                   if (_passports.isNotEmpty) ...[
-                    _buildSectionHeader('Document Alerts'),
-                    ..._passports.map((p) => _buildPassportAlertCard(p)),
+                    _sectionHeader('Document Alerts'),
+                    ..._passports.map((p) => _passportCard(p)).toList(),
                     const SizedBox(height: 16),
                   ],
                   if (_recentTrips.isNotEmpty) ...[
-                    _buildSectionHeader('Recent Activity'),
-                    ..._recentTrips.map((t) => _buildRecentTripCard(t)),
+                    _sectionHeader('Recent Activity'),
+                    ..._recentTrips.map((t) => _recentTripCard(t)).toList(),
                     const SizedBox(height: 16),
                   ],
                   if (_upcomingTrips.isEmpty &&
@@ -146,12 +127,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       _recentExpenses.isEmpty &&
                       _passports.isEmpty &&
                       _recentTrips.isEmpty)
-                    _buildEmptyState(),
+                    _emptyState(),
                 ]),
               ),
-            SliverToBoxAdapter(
-              child: const SizedBox(height: 16),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
           ],
         ),
       ),
@@ -159,35 +138,48 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary.withOpacity(0.12),
+            colorScheme.surface,
+          ],
+        ),
+        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.12))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _greeting,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateTime.now().toString().split(' ')[0],
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                        ),
-                  ),
-                ],
-              ),
+              Text(_greeting, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(DateTime.now().toString().split(' ')[0], style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withOpacity(0.5))),
+            ],
+          ),
+          Row(
+            children: [
               IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {},
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.notifications_outlined, size: 20),
+                ),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Notifications coming soon')),
+                  );
+                },
+                tooltip: 'Notifications',
               ),
             ],
           ),
@@ -196,20 +188,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _sectionHeader(String title) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
+          color: colorScheme.primary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 
-  Widget _buildTripCard(Trip trip) {
+  Widget _tripCard(Trip trip) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final daysUntil = trip.departure.difference(DateTime.now()).inDays;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: InkWell(
@@ -222,58 +217,92 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _statusColor(trip.status).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.flight, color: _statusColor(trip.status), size: 20),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      trip.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(trip.name, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text('${trip.originName} → ${trip.destName}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withOpacity(0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ],
                     ),
                   ),
-                  _buildStatusChip(trip.status),
+                  PopupMenuButton(
+                    icon: const Icon(Icons.more_vert, size: 18),
+                    itemBuilder: (c) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${trip.originName} → ${trip.destName}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _chip(Icons.calendar_today, DateFormat('MMM d').format(trip.departure)),
+                  const SizedBox(width: 6),
+                  _chip(Icons.people, '${trip.travelers} traveler${trip.travelers > 1 ? 's' : ''}'),
+                  const SizedBox(width: 6),
+                  _chip(Icons.local_shipping, trip.transportLabel),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${DateFormat('MMM d').format(trip.departure)} – ${DateFormat('MMM d').format(trip.returnDate)} · ${trip.nights} nights · ${trip.travelers} traveler${trip.travelers > 1 ? 's' : ''}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-              ),
-              if (trip.distance != null) ...[
-                const SizedBox(height: 8),
+              if (trip.distance != null && trip.distance! > 0) ...[
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.local_shipping, size: 14, color: Colors.grey),
+                    Icon(Icons.directions_car, size: 12, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text(
-                      '${trip.distance!.toStringAsFixed(0)} km · ${trip.travelTime ?? 'TBD'}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey,
-                          ),
-                    ),
+                    Text('${trip.distance!.toStringAsFixed(0)} km', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                    if (trip.travelTime != null) ...[
+                      const SizedBox(width: 6),
+                      Text(trip.travelTime!, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                    ],
                   ],
                 ),
               ],
-              if (trip.totalBudget > 0) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Budget: ${NumberFormat.currency(symbol: _currencySymbol(trip.baseCurrency)).format(trip.totalBudget)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _statusChip(trip.status),
+                  if (trip.status == 'COMPLETED') ...[
+                    const SizedBox(width: 6),
+                    Text('${trip.nights} nights', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                  ],
+                  const Spacer(),
+                  if (trip.totalBudget > 0)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('Budget', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                        Text(_fmtCurrency(trip.baseCurrency, trip.totalBudget), style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                ],
+              ),
+              if (daysUntil > 0 && trip.status != 'COMPLETED') ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: (daysUntil <= 7 ? Colors.orange : Colors.blue).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    daysUntil <= 0 ? 'Departed' : daysUntil == 1 ? 'Departs tomorrow!' : 'Departs in $daysUntil days',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: daysUntil <= 7 ? Colors.orange : Colors.blue,
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -283,45 +312,256 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatusChip(String status) {
-    Color color;
-    switch (status) {
-      case 'IDEA':
-        color = Colors.grey;
-        break;
-      case 'PLANNING':
-        color = Colors.blue;
-        break;
-      case 'READY':
-        color = Colors.orange;
-        break;
-      case 'ACTIVE':
-        color = Colors.green;
-        break;
-      case 'COMPLETED':
-        color = Colors.grey;
-        break;
-      default:
-        color = Colors.grey;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
+  Widget _taskCard(Task task) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: _priorityColor(task.priority),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(task.title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if (task.dueDate != null)
+                      Text(DateFormat('MMM d, y').format(task.dueDate!), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: task.isOverdue ? Colors.red : Colors.grey)),
+                  ],
+                ),
+              ),
+              Checkbox(value: task.isCompleted, onChanged: (v) {}),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  String _currencySymbol(String currency) {
+  Widget _expenseCard(Expense expense) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: _expenseColor(expense.category).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(_expenseIcon(expense.category), color: _expenseColor(expense.category), size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(expense.title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(expense.merchant ?? expense.category, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Text(_fmtCurrency(expense.currency, expense.amount), style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _passportCard(Passport passport) {
+    final isExpired = passport.expired;
+    final accent = isExpired ? Colors.red : (passport.expiringSoon ? Colors.orange : Colors.green);
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      color: accent.withOpacity(0.08),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.badge, color: accent, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(passport.country, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(passport.passportNumber, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                    const SizedBox(height: 2),
+                    Text(
+                      isExpired ? 'Expired ${DateFormat('MMM d, y').format(passport.expiryDate)}' : passport.expiringSoon ? 'Expires ${DateFormat('MMM d, y').format(passport.expiryDate)}' : 'Valid until ${DateFormat('MMM d, y').format(passport.expiryDate)}',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: accent),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 14, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _recentTripCard(Trip trip) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.flight, color: colorScheme.primary, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(trip.name, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text('${trip.originName} → ${trip.destName}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(DateFormat('MMM d').format(trip.departure), style: Theme.of(context).textTheme.bodySmall),
+                  if (trip.status == 'COMPLETED') const Icon(Icons.check_circle, color: Colors.green, size: 14),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: Colors.grey),
+          const SizedBox(width: 3),
+          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusChip(String status) {
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: color)),
+    );
+  }
+
+  Widget _emptyState() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.travel_explore, size: 64, color: colorScheme.onSurface.withOpacity(0.3)),
+          const SizedBox(height: 16),
+          Text('No active trips', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface.withOpacity(0.5))),
+          const SizedBox(height: 8),
+          Text('Create a trip to start planning', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withOpacity(0.4))),
+        ],
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'IDEA': return Colors.grey;
+      case 'PLANNING': return Colors.blue;
+      case 'READY': return Colors.orange;
+      case 'ACTIVE': return Colors.green;
+      case 'COMPLETED': return Colors.grey;
+      default: return Colors.grey;
+    }
+  }
+
+  Color _priorityColor(TaskPriority priority) {
+    switch (priority) {
+      case 0: return Colors.grey;
+      case 1: return Colors.orange;
+      case 2: return Colors.red;
+      default: return Colors.grey;
+    }
+  }
+
+  Color _expenseColor(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'food': return Colors.orange;
+      case 'transport': return Colors.blue;
+      case 'accommodation': return Colors.purple;
+      case 'activities': return Colors.green;
+      case 'shopping': return Colors.pink;
+      default: return Colors.grey;
+    }
+  }
+
+  IconData _expenseIcon(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'food': return Icons.restaurant;
+      case 'transport': return Icons.directions_car;
+      case 'accommodation': return Icons.hotel;
+      case 'activities': return Icons.event;
+      case 'shopping': return Icons.shopping_bag;
+      default: return Icons.receipt;
+    }
+  }
+
+  String _fmtCurrency(String currency, double amount) {
     final symbols = {
       'USD': '\$',
       'EUR': '€',
@@ -335,320 +575,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'AUD': 'A\$',
       'CAD': 'C\$',
     };
-    return symbols[currency] ?? currency;
-  }
-
-  Widget _buildTaskCard(Task task) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _taskPriorityColor(task.priority),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (task.dueDate != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        DateFormat('MMM d, y').format(task.dueDate!),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: task.isOverdue ? Colors.red : Colors.grey,
-                            ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Checkbox(
-                value: task.isCompleted,
-                onChanged: (v) {},
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _taskPriorityColor(TaskPriority priority) {
-    switch (priority) {
-      case TaskPriority.low:
-        return Colors.grey;
-      case TaskPriority.medium:
-        return Colors.orange;
-      case TaskPriority.high:
-        return Colors.red;
-    }
-  }
-
-  Widget _buildExpenseCard(Expense expense) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _expenseCategoryColor(expense.category).withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  _expenseCategoryIcon(expense.category),
-                  color: _expenseCategoryColor(expense.category),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      expense.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      expense.merchant ?? expense.category,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                NumberFormat.currency(symbol: _currencySymbol(expense.currency)).format(expense.amount),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _expenseCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Colors.orange;
-      case 'transport':
-        return Colors.blue;
-      case 'accommodation':
-        return Colors.purple;
-      case 'activities':
-        return Colors.green;
-      case 'shopping':
-        return Colors.pink;
-      case 'other':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _expenseCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'transport':
-        return Icons.directions_car;
-      case 'accommodation':
-        return Icons.hotel;
-      case 'activities':
-        return Icons.event;
-      case 'shopping':
-        return Icons.shopping_bag;
-      default:
-        return Icons.receipt;
-    }
-  }
-
-  Widget _buildPassportAlertCard(Passport passport) {
-    final isExpired = passport.expired;
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      color: (isExpired ? Colors.red.withValues(alpha: 0.5) : Colors.orange.withValues(alpha: 0.5)),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: (isExpired ? Colors.red : Colors.orange).withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.badge,
-                  color: (isExpired ? Colors.red : Colors.orange),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      passport.country,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                    Text(
-                      passport.passportNumber,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey,
-                          ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isExpired
-                          ? 'Expired on ${DateFormat('MMM d, y').format(passport.expiryDate)}'
-                          : 'Expires ${DateFormat('MMM d, y').format(passport.expiryDate)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: (isExpired ? Colors.red : Colors.orange).withValues(alpha: 0.5),
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentTripCard(Trip trip) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.flight,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      trip.name,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '${trip.originName} → ${trip.destName}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    DateFormat('MMM d').format(trip.departure),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  if (trip.status == 'COMPLETED')
-                    const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.travel_explore,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No active trips',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Create a trip to start planning',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-          ),
-        ],
-      ),
-    );
+    return '${symbols[currency] ?? currency}${amount.toStringAsFixed(0)}';
   }
 
   void _handleQuickCapture(String type, {String? text, List<String>? tags}) {
@@ -668,9 +595,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'updated_at': DateTime.now().toIso8601String(),
           });
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Note saved')),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Note saved')));
             _loadData();
           }
         }
@@ -690,9 +615,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'is_quick': 1,
           });
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Task added')),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task added')));
             _loadData();
           }
         }
@@ -714,21 +637,10 @@ class _HomeScreenState extends State<HomeScreen> {
             'updated_at': DateTime.now().toIso8601String(),
           });
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Expense logged')),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense logged')));
             _loadData();
           }
         }
-        break;
-      case 'trip':
-        // Handled by the widget — opens create trip dialog
-        break;
-      case 'photo':
-        break;
-      case 'flight':
-        break;
-      case 'hotel':
         break;
       default:
         break;
