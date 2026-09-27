@@ -4,7 +4,7 @@ plugins {
 }
 android {
     namespace = "com.foxory.foxory_mobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
