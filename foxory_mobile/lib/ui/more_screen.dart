@@ -168,7 +168,7 @@ class _MoreScreenState extends State<MoreScreen> {
       subtitle = item.content.length > 60
           ? '${item.content.substring(0, 60)}...'
           : item.content;
-      dotColor = _priorityColor((item as Note).priority ?? 0);
+      dotColor = _priorityColor(TaskPriority.values[(item as Note).priority ?? 0]);
     } else if (item is Task) {
       title = item.title;
       subtitle = item.dueDate != null
