@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: foxory_mobile
     steps:
       - uses: actions/checkout@v4
 
@@ -37,10 +40,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: foxory_mobile/build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: foxory_mobile/build/app/outputs/flutter-apk/app-release.apk
