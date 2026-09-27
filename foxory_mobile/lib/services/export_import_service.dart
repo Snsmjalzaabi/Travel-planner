@@ -40,54 +40,6 @@ class ExportImportService {
     );
   }
 
-  Future<List<Hotel>> _loadHotelsForTrip(int tripId) async {
-    final db = await _dbHelper.database;
-    final hotels = await db.query('hotels', where: 'trip_id = ?', whereArgs: [tripId]);
-    return hotels.map((m) => Hotel.fromMap(m)).toList();
-  }
-
-  Future<List<Flight>> _loadFlightsForTrip(int tripId) async {
-    final db = await _dbHelper.database;
-    final flights = await db.query('flights', where: 'trip_id = ?', whereArgs: [tripId]);
-    return flights.map((m) => Flight.fromMap(m)).toList();
-  }
-
-  Future<List<ItineraryDay>> _loadItineraryDaysForTrip(int tripId) async {
-    final db = await _dbHelper.database;
-    final days = await db.query('itinerary_days', where: 'trip_id = ?', whereArgs: [tripId]);
-    return days.map((m) => ItineraryDay.fromMap(m)).toList();
-  }
-
-  Future<List<ItineraryActivity>> _loadActivitiesForTrip(int tripId) async {
-    final db = await _dbHelper.database;
-    final activities = await db.query('itinerary_activities', where: 'trip_id = ?', whereArgs: [tripId]);
-    return activities.map((m) => ItineraryActivity.fromMap(m)).toList();
-  }
-
-  Future<List<Expense>> _loadExpensesForTrip(int tripId) async {
-    final db = await _dbHelper.database;
-    final expenses = await db.query('expenses', where: 'trip_id = ?', whereArgs: [tripId]);
-    return expenses.map((m) => Expense.fromMap(m)).toList();
-  }
-
-  Future<List<PackingItem>> _loadPackingForTrip(int tripId) async {
-    final db = await _dbHelper.database;
-    final items = await db.query('packing_items', where: 'trip_id = ?', whereArgs: [tripId]);
-    return items.map((m) => PackingItem.fromMap(m)).toList();
-  }
-
-  Future<List<Photo>> _loadPhotosForTrip(int tripId) async {
-    final db = await _dbHelper.database;
-    final photos = await db.query('photos', where: 'trip_id = ?', whereArgs: [tripId]);
-    return photos.map((m) => Photo.fromMap(m)).toList();
-  }
-
-  Future<List<Note>> _loadNotesForTrip(int tripId) async {
-    final db = await _dbHelper.database;
-    final notes = await db.query('notes', where: 'trip_id = ?', whereArgs: [tripId.toString()]);
-    return notes.map((m) => Note.fromMap(m)).toList();
-  }
-
   Future<String> exportAllTripsAsJson() async {
     final db = await _dbHelper.database;
     final trips = await db.query('trips', orderBy: 'created_at DESC');

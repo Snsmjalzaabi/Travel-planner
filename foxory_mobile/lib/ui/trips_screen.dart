@@ -45,12 +45,6 @@ class _TripsScreenState extends State<TripsScreen> {
     });
   }
 
-  void _applyFilter() {
-    setState(() {
-      _showArchived = false;
-    });
-    _loadTrips();
-  }
 
   Future<void> _deleteTrip(Trip trip) async {
     final confirm = await showDialog<bool>(

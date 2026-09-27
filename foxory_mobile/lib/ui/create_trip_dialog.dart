@@ -35,19 +35,8 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
   DateTime _departure = DateTime.now().add(const Duration(days: 30));
   DateTime _returnDate = DateTime.now().add(const Duration(days: 37));
 
-  bool _autoGeocode = true;
+  final bool _autoGeocode = true;
 
-  final List<String> _countries = [
-    'United Arab Emirates', 'United States', 'United Kingdom', 'Germany',
-    'France', 'Italy', 'Spain', 'Japan', 'China', 'South Korea',
-    'Thailand', 'Singapore', 'Malaysia', 'Indonesia', 'India',
-    'Turkey', 'Egypt', 'South Africa', 'Australia', 'New Zealand',
-    'Canada', 'Mexico', 'Brazil', 'Argentina', 'Russia',
-    'Netherlands', 'Switzerland', 'Austria', 'Belgium', ' Sweden',
-    'Norway', 'Denmark', 'Finland', 'Poland', 'Czech Republic',
-    'Portugal', 'Greece', 'Ireland', 'Hong Kong', 'Taiwan',
-    'Vietnam', 'Philippines', 'Pakistan', 'Bangladesh', 'Nigeria',
-  ];
 
   final List<String> _currencies = [
     'USD', 'EUR', 'GBP', 'AED', 'INR', 'JPY', 'CNY', 'KRW', 'SGD', 'AUD', 'CAD',
@@ -364,7 +353,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<int>(
-                          value: _travelers,
+                          initialValue: _travelers,
                           decoration: const InputDecoration(
                             labelText: 'Travelers',
                             border: OutlineInputBorder(),
@@ -383,7 +372,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _baseCurrency,
+                          initialValue: _baseCurrency,
                           decoration: const InputDecoration(
                             labelText: 'Base Currency',
                             border: OutlineInputBorder(),
@@ -403,7 +392,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                   const SizedBox(height: 12),
                   // Transport type
                   DropdownButtonFormField<String>(
-                    value: _transportType,
+                    initialValue: _transportType,
                     decoration: const InputDecoration(
                       labelText: 'Transport Type',
                       border: OutlineInputBorder(),
@@ -419,7 +408,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                   const SizedBox(height: 12),
                   // Status
                   DropdownButtonFormField<String>(
-                    value: _status,
+                    initialValue: _status,
                     decoration: const InputDecoration(
                       labelText: 'Status',
                       border: OutlineInputBorder(),

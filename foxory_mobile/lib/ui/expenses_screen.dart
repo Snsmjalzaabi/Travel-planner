@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../core/database_helper.dart';
-import 'package:intl/intl.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -64,7 +63,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: currencyCtrl.text,
+                      initialValue: currencyCtrl.text,
                       decoration: const InputDecoration(labelText: 'Currency'),
                       items: ['AED', 'USD', 'EUR', 'GBP', 'SAR'].map((c) {
                         return DropdownMenuItem(value: c, child: Text(c));
