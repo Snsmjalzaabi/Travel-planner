@@ -92,14 +92,18 @@ class MainShell extends StatelessWidget {
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
-      body: IndexedStack(
-        index: currentIndex,
-        children: const [
-          HomeScreen(),
-          TripsScreen(),
-          PlannerScreen(),
-          ExpensesScreen(),
-          MoreScreen(),
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: currentIndex,
+            children: const [
+              HomeScreen(),
+              TripsScreen(),
+              PlannerScreen(),
+              ExpensesScreen(),
+              MoreScreen(),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
