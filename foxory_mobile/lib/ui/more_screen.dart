@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../core/database_helper.dart';
 import '../core/app_settings.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../ui/hotel_booking_form.dart';
 
 class MoreScreen extends StatefulWidget {
@@ -808,10 +809,14 @@ class _MoreScreenState extends State<MoreScreen> {
 
   void _showHotelDetail(dynamic hotelMap) {
     final h = hotelMap as Map<String, dynamic>;
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(h['name'] as String ?? 'Hotel'),
+        title: Text(
+          h['name'] as String ?? 'Hotel',
+          style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: cs.onSurface),
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -824,45 +829,63 @@ class _MoreScreenState extends State<MoreScreen> {
                   (h['country'] as String?)?.isNotEmpty == true)
                 Text('${h['city']} — ${h['country']}'),
               const SizedBox(height: 4),
-              Text(
-                'Check-in: ${DateFormat('MMM d, y').format(DateTime.tryParse(h['check_in'] as String ?? '') ?? DateTime.now())}',
-              ),
-              Text(
-                'Check-out: ${DateFormat('MMM d, y').format(DateTime.tryParse(h['check_out'] as String ?? '') ?? DateTime.now())}',
-              ),
+              _hotelDetailRow('Check-in', DateFormat('MMM d, y').format(DateTime.tryParse(h['check_in'] as String ?? '') ?? DateTime.now()), Icons.calendar_today, cs),
+              _hotelDetailRow('Check-out', DateFormat('MMM d, y').format(DateTime.tryParse(h['check_out'] as String ?? '') ?? DateTime.now()), Icons.calendar_today, cs),
               const SizedBox(height: 4),
               if ((h['confirmation_number'] as String?)?.isNotEmpty == true)
-                Text(
-                  'Confirmation: ${h['confirmation_number']}',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
+                _hotelDetailRow('Confirmation', h['confirmation_number']!, Icons.badge, cs),
               if (((h['cost'] as num?) ?? 0) > 0)
-                Text(
-                  'Total: ${(h['cost'] as num).toStringAsFixed(2)} ${h['currency']}',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
+                _hotelDetailRow('Total', '${(h['cost'] as num).toStringAsFixed(2)}  ${h['currency']}', Icons.attach_money, cs),
               if ((h['phone'] as String?)?.isNotEmpty == true)
-                Text('Phone: ${h['phone']}'),
+                _hotelDetailRow('Phone', h['phone']!, Icons.phone, cs),
               if ((h['booking_url'] as String?)?.isNotEmpty == true)
-                Text('Booking: ${h['booking_url']}'),
+                _hotelDetailRow('Booking', h['booking_url']!, Icons.link, cs),
             ],
           ),
         ),
         actions: [
           if ((h['booking_url'] as String?)?.isNotEmpty == true)
-            TextButton(
+            ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                // Would open URL — for now just dismiss
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Open booking URL (feature coming)')),
                 );
               },
-              child: const Text('Open booking'),
+              child: Text(
+                'Open booking',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
             ),
-          TextButton(
+          OutlinedButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+            child: Text(
+              'Close',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hotelDetailRow(String label, String value, IconData icon, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: cs.onSurface.withOpacity(0.4)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 11, color: cs.onSurface.withOpacity(0.4), fontWeight: FontWeight.w500)),
+                const SizedBox(height: 1),
+                Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500), maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
+            ),
           ),
         ],
       ),

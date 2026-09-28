@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:sqflite/sqflite.dart';
 import '../core/database_helper.dart';
 import '../services/hotel_confirmation_service.dart';
 
-/// Manual hotel booking entry form.
-///
-/// A clean form for adding a hotel stay to a trip: hotel name, address, city,
-/// country, check-in/out dates, confirmation number, booking URL, phone, cost,
-/// currency. The trip is auto-suggested (matching destination city + date
-/// overlap) but the user can pick any trip from the list.
-///
-/// No OCR, no photo parsing — just structured data entry, linked to trips.
+/// Hotel booking entry form — styled to match the Foxory theme:
+///   Google Fonts (Inter / Poppins), Material 3 color scheme,
+///   card-surface form, rounded inputs with primary focus, themed buttons.
 
 class HotelBookingForm extends StatefulWidget {
   final int? preselectedTripId;
@@ -45,7 +42,6 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
     super.initState();
     _selectedTripId = widget.preselectedTripId;
     _loadTrips();
-    // Auto-suggest: if preselected, try to match by city+date
   }
 
   Future<void> _loadTrips() async {
@@ -69,25 +65,24 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
       lastDate: DateTime.now().add(const Duration(days: 1095)),
     ).then((d) {
       if (d == null) return;
-      if (which == 'in') {
-        setState(() => _checkIn = d);
-      } else {
-        setState(() => _checkOut = d);
-      }
+      setState(() {
+        if (which == 'in') _checkIn = d;
+        else _checkOut = d;
+      });
     });
   }
 
   Future<void> _save() async {
     if (_form['name']!.text.trim().isEmpty) {
-      _saveError = 'Hotel name is required.'; return;
+      setState(() => _saveError = 'Hotel name is required.'); return;
     }
-    if (_checkIn == null) { _saveError = 'Check-in date is required.'; return; }
-    if (_selectedTripId == null) { _saveError = 'Please select a trip.'; return; }
+    if (_checkIn == null) { setState(() => _saveError = 'Check-in date is required.'); return; }
+    if (_selectedTripId == null) { setState(() => _saveError = 'Please select a trip.'); return; }
 
     setState(() { _isLoading = true; _saveError = null; });
 
     try {
-      final db = DatabaseHelper();
+      final db = await DatabaseHelper().database;
       final data = <String, dynamic>{
         'trip_id': _selectedTripId,
         'name': _form['name']!.text.trim(),
@@ -110,7 +105,7 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
         'sync_enabled': 1,
         'sync_status': 0,
       };
-      final id = await db.insertHotel(data);
+      final id = await db.insert('hotels', data, conflictAlgorithm: ConflictAlgorithm.replace);
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +121,6 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
     }
   }
 
-  /// Try to auto-match a trip by destination city + date overlap.
   Future<void> _autoMatch() async {
     final city = _form['city']!.text.trim();
     if (city.isEmpty || _checkIn == null) return;
@@ -141,204 +135,313 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
     }
   }
 
+  InputDecoration _inputDecoration(String label, IconData icon, {bool required = false}) {
+    final cs = Theme.of(context).colorScheme;
+    return InputDecoration(
+      labelText: required ? '$label *' : label,
+      prefixIcon: Icon(icon, size: 20, color: cs.onSurface.withOpacity(0.5)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.outline.withOpacity(0.3)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.outline.withOpacity(0.2)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.primary, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      filled: true,
+      fillColor: cs.surfaceContainerHighest.withOpacity(0.4),
+    );
+  }
+
+  Widget _dateField(String label, IconData icon, {required String which}) {
+    final cs = Theme.of(context).colorScheme;
+    final value = which == 'in' ? _checkIn : _checkOut;
+    return InkWell(
+      onTap: () => _pickDate(which),
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, size: 20, color: cs.onSurface.withOpacity(0.5)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: cs.outline.withOpacity(0.3)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: cs.outline.withOpacity(0.2)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: cs.primary, width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          filled: true,
+          fillColor: cs.surfaceContainerHighest.withOpacity(0.4),
+        ),
+        child: Text(
+          value != null ? DateFormat('MMM d, y').format(value) : ' tap to set',
+          style: value == null
+              ? GoogleFonts.inter(fontSize: 14, color: cs.onSurface.withOpacity(0.4))
+              : GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
+
+  Widget _currencyDropdown() {
+    final cs = Theme.of(context).colorScheme;
+    return DropdownButtonFormField<String>(
+      value: _currency,
+      decoration: InputDecoration(
+        labelText: 'Currency',
+        prefixIcon: Icon(Icons.attach_money, size: 20, color: cs.onSurface.withOpacity(0.5)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: cs.outline.withOpacity(0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: cs.outline.withOpacity(0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: cs.primary, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        filled: true,
+        fillColor: cs.surfaceContainerHighest.withOpacity(0.4),
+      ),
+      items: const ['USD','EUR','GBP','AED','INR','CHF','CAD','AUD','THB','SGD','JPY']
+          .map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 14))))
+          .toList(),
+      onChanged: (v) => setState(() => _currency = v ?? 'USD'),
+      style: GoogleFonts.inter(fontSize: 14),
+    );
+  }
+
+  Widget _sectionHeader(String label, IconData icon) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: cs.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: cs.primary),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: cs.onSurface),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Hotel Booking'),
-        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        centerTitle: false,
+        title: Text(
+          'Add Hotel Booking',
+          style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w600, color: cs.onSurface),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           TextButton(
             onPressed: _trips.isNotEmpty ? _autoMatch : null,
-            child: const Text('Auto-match trip'),
+            child: Text(
+              'Auto-match trip',
+              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: cs.primary),
+            ),
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _saveError != null
-              ? Center(child: Text(_saveError!, style: const TextStyle(color: Colors.red)))
+              ? Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      _saveError!,
+                      style: TextStyle(color: Colors.red.shade700, fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // basic info
-                      TextField(
-                        controller: _form['name'],
-                        decoration: const InputDecoration(
-                          labelText: 'Hotel name *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.hotel),
+                      // Card surface for the form
+                      Container(
+                        decoration: BoxDecoration(
+                          color: cs.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: cs.outlineVariant.withOpacity(0.15)),
                         ),
-                        autofocus: true,
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _form['address'],
-                        decoration: const InputDecoration(
-                          labelText: 'Address',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.location_on),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _form['city'],
-                              decoration: const InputDecoration(
-                                labelText: 'City',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.location_city),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ---- Stay details ----
+                              _sectionHeader('Stay details', Icons.hotel),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _form['name'],
+                                decoration: _inputDecoration('Hotel name', Icons.hotel, required: true),
+                                autofocus: true,
+                                style: GoogleFonts.inter(fontSize: 15),
                               ),
-                              onChanged: (_) => _autoMatch(),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextField(
-                              controller: _form['country'],
-                              decoration: const InputDecoration(
-                                labelText: 'Country',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.public),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: _form['address'],
+                                decoration: _inputDecoration('Address', Icons.location_on),
+                                style: GoogleFonts.inter(fontSize: 15),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _pickDate('in'),
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'Check-in *',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.calendar_today),
-                                ),
-                                child: Text(
-                                  _checkIn != null
-                                      ? DateFormat('MMM d, y').format(_checkIn!)
-                                      : ' tap to set',
-                                  style: _checkIn == null
-                                      ? const TextStyle(color: Colors.grey)
-                                      : null,
-                                ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _form['city'],
+                                      decoration: _inputDecoration('City', Icons.location_city),
+                                      onChanged: (_) => _autoMatch(),
+                                      style: GoogleFonts.inter(fontSize: 15),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _form['country'],
+                                      decoration: _inputDecoration('Country', Icons.public),
+                                      style: GoogleFonts.inter(fontSize: 15),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _pickDate('out'),
-                              child: InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: 'Check-out',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.calendar_today),
-                                ),
-                                child: Text(
-                                  _checkOut != null
-                                      ? DateFormat('MMM d, y').format(_checkOut!)
-                                      : (_checkIn != null ? ' tap to set' : ' tap to set'),
-                                  style: (_checkOut == null)
-                                      ? const TextStyle(color: Colors.grey)
-                                      : null,
-                                ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _dateField('Check-in', Icons.calendar_today, which: 'in'),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _dateField('Check-out', Icons.calendar_today, which: 'out'),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Confirmation details',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _form['confirmation'],
-                        decoration: const InputDecoration(
-                          labelText: 'Confirmation #',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.badge),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _form['cost'],
-                              decoration: const InputDecoration(
-                                labelText: 'Total cost',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.attach_money),
+
+                              const SizedBox(height: 20),
+                              // ---- Confirmation details ----
+                              _sectionHeader('Confirmation details', Icons.badge),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _form['confirmation'],
+                                decoration: _inputDecoration('Confirmation #', Icons.badge),
+                                style: GoogleFonts.inter(fontSize: 15),
                               ),
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _currency,
-                              decoration: const InputDecoration(
-                                labelText: 'Currency',
-                                border: OutlineInputBorder(),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _form['cost'],
+                                      decoration: _inputDecoration('Total cost', Icons.attach_money),
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: GoogleFonts.inter(fontSize: 15),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _currencyDropdown(),
+                                  ),
+                                ],
                               ),
-                              items: const [
-                                'USD','EUR','GBP','AED','INR','CHF','CAD','AUD','THB','SGD','JPY',
-                              ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                              onChanged: (v) => setState(() => _currency = v ?? 'USD'),
-                            ),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: _form['url'],
+                                decoration: _inputDecoration('Booking URL', Icons.link),
+                                keyboardType: TextInputType.url,
+                                style: GoogleFonts.inter(fontSize: 15),
+                              ),
+                              const SizedBox(height: 14),
+                              TextField(
+                                controller: _form['phone'],
+                                decoration: _inputDecoration('Phone', Icons.phone),
+                                style: GoogleFonts.inter(fontSize: 15),
+                              ),
+
+                              const SizedBox(height: 20),
+                              // ---- Linked trip ----
+                              _sectionHeader('Link to trip', Icons.flight),
+                              const SizedBox(height: 12),
+                              if (_trips.isEmpty)
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: cs.surfaceContainerHighest.withOpacity(0.3),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.info_outline, size: 16, color: cs.onSurface.withOpacity(0.5)),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'No trips yet. Create a trip first, then come back.',
+                                        style: GoogleFonts.inter(fontSize: 13, color: cs.onSurface.withOpacity(0.6)),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                ...(_trips.map((t) => RadioListTile<int>(
+                                  value: t['id'] as int,
+                                  groupValue: _selectedTripId,
+                                  title: Text(
+                                    '${t['name']} — ${t['dest_name']}',
+                                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
+                                  ),
+                                  subtitle: Text(
+                                    '${DateFormat('MMM d, y').format(DateTime.tryParse(t['departure'] as String ?? '') ?? DateTime.now())} → ${DateFormat('MMM d, y').format(DateTime.tryParse(t['return_date'] as String ?? '') ?? DateTime.now())}',
+                                    style: GoogleFonts.inter(fontSize: 12, color: cs.onSurface.withOpacity(0.5)),
+                                  ),
+                                  onChanged: (id) => setState(() => _selectedTripId = id),
+                                ))),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _form['url'],
-                        decoration: const InputDecoration(
-                          labelText: 'Booking URL',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.link),
-                        ),
-                        keyboardType: TextInputType.url,
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _form['phone'],
-                        decoration: const InputDecoration(
-                          labelText: 'Phone',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.phone),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Link to trip *',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_trips.isEmpty)
-                        const Text(
-                          'No trips yet. Create a trip first, then come back.',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
-                        )
-                      else
-                        ...(_trips.map((t) => RadioListTile<int>(
-                          value: t['id'] as int,
-                          groupValue: _selectedTripId,
-                          title: Text('${t['name']} — ${t['dest_name']}'),
-                          subtitle: Text(
-                            '${DateFormat('MMM d, y').format(DateTime.tryParse(t['departure'] as String ?? '') ?? DateTime.now())} → ${DateFormat('MMM d, y').format(DateTime.tryParse(t['return_date'] as String ?? '') ?? DateTime.now())}'),
-                          onChanged: (id) => setState(() => _selectedTripId = id),
-                        ))),
-                      const SizedBox(height: 24),
+
+                      const SizedBox(height: 20),
+                      // Action buttons
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -346,17 +449,24 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text('Save Hotel Booking'),
+                          child: Text(
+                            'Save Hotel Booking',
+                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
-                        child: OutlinedButton(
+                        child: TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
