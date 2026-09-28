@@ -476,6 +476,27 @@ class DatabaseHelper {
     return db.rawQuery(sql, args);
   }
 
+  // ---------- hotel CRUD ----------
+  Future<int> insertHotel(Map<String, dynamic> data) async {
+    final db = await database;
+    return db.insert('hotels', data, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<int> updateHotel(int id, Map<String, dynamic> data) async {
+    final db = await database;
+    return db.update('hotels', data, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteHotel(int id) async {
+    final db = await database;
+    return db.delete('hotels', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Map<String, dynamic>>> getHotelsForTrip(int tripId) async {
+    final db = await database;
+    return db.query('hotels', where: 'trip_id = ?', whereArgs: [tripId], orderBy: 'check_in DESC');
+  }
+
   Future<void> close() async {
     final db = await database;
     await db.close();

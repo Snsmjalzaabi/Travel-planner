@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../core/database_helper.dart';
 import '../core/app_settings.dart';
 import 'package:intl/intl.dart';
+import '../ui/hotel_booking_form.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -16,6 +17,7 @@ class _MoreScreenState extends State<MoreScreen> {
   List<Task> _tasks = [];
   List<Passport> _passports = [];
   List<AppFile> _files = [];
+  List<Map<String, dynamic>> _hotels = [];
   bool _isLoading = true;
 
   @override
@@ -43,13 +45,19 @@ class _MoreScreenState extends State<MoreScreen> {
       orderBy: 'created_at DESC',
       limit: 20,
     );
+    final hotels = await db.query(
+      'hotels',
+      orderBy: 'check_in DESC',
+      limit: 20,
+    );
 
     setState(() {
-      _notes = notes.map((m) => Note.fromMap(m)).toList();
-      _tasks = tasks.map((m) => Task.fromMap(m)).toList();
-      _passports = passports.map((m) => Passport.fromMap(m)).toList();
-      _files = files.map((m) => AppFile.fromMap(m)).toList();
-      _isLoading = false;
+    _notes = notes.map((m) => Note.fromMap(m)).toList();
+    _tasks = tasks.map((m) => Task.fromMap(m)).toList();
+    _passports = passports.map((m) => Passport.fromMap(m)).toList();
+    _files = files.map((m) => AppFile.fromMap(m)).toList();
+    _hotels = hotels.map((m) => m as Map<String, dynamic>).toList();
+    _isLoading = false;
     });
   }
 
@@ -74,6 +82,9 @@ class _MoreScreenState extends State<MoreScreen> {
                 }),
                 _buildSection('Files', Icons.folder, _files, (f) {
                   _showFileDetail(f);
+                }),
+                _buildSection('Hotel Confirmations', Icons.hotel, _hotels, (h) {
+                  _showHotelDetail(h);
                 }),
                 const Divider(),
                 _buildSettingsItems(),
@@ -393,6 +404,15 @@ class _MoreScreenState extends State<MoreScreen> {
     );
   }
 
+  void _quickHotel(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => const HotelBookingForm(),
+      ),
+    ).then((_) => setState(() {}));
+  }
+
   Widget _addOption(IconData icon, String label, String subtitle) {
     return ListTile(
       leading: Container(
@@ -424,6 +444,8 @@ class _MoreScreenState extends State<MoreScreen> {
             );
             break;
           case 'Hotel':
+            _quickHotel(context);
+            break;
           case 'Flight':
           case 'Passport/Visa':
           case 'File':
@@ -766,7 +788,7 @@ class _MoreScreenState extends State<MoreScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (f.description?.isNotEmpty == true) Text(f.description!),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
                 'Added: ${DateFormat('MMM d, y').format(f.createdAt)}',
                 style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Colors.grey),
@@ -775,6 +797,69 @@ class _MoreScreenState extends State<MoreScreen> {
           ),
         ),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHotelDetail(dynamic hotelMap) {
+    final h = hotelMap as Map<String, dynamic>;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(h['name'] as String ?? 'Hotel'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if ((h['address'] as String?)?.isNotEmpty == true)
+                Text('Address: ${h['address']}'),
+              const SizedBox(height: 4),
+              if ((h['city'] as String?)?.isNotEmpty == true ||
+                  (h['country'] as String?)?.isNotEmpty == true)
+                Text('${h['city']} — ${h['country']}'),
+              const SizedBox(height: 4),
+              Text(
+                'Check-in: ${DateFormat('MMM d, y').format(DateTime.tryParse(h['check_in'] as String ?? '') ?? DateTime.now())}',
+              ),
+              Text(
+                'Check-out: ${DateFormat('MMM d, y').format(DateTime.tryParse(h['check_out'] as String ?? '') ?? DateTime.now())}',
+              ),
+              const SizedBox(height: 4),
+              if ((h['confirmation_number'] as String?)?.isNotEmpty == true)
+                Text(
+                  'Confirmation: ${h['confirmation_number']}',
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              if (((h['cost'] as num?) ?? 0) > 0)
+                Text(
+                  'Total: ${(h['cost'] as num).toStringAsFixed(2)} ${h['currency']}',
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              if ((h['phone'] as String?)?.isNotEmpty == true)
+                Text('Phone: ${h['phone']}'),
+              if ((h['booking_url'] as String?)?.isNotEmpty == true)
+                Text('Booking: ${h['booking_url']}'),
+            ],
+          ),
+        ),
+        actions: [
+          if ((h['booking_url'] as String?)?.isNotEmpty == true)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                // Would open URL — for now just dismiss
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Open booking URL (feature coming)')),
+                );
+              },
+              child: const Text('Open booking'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),

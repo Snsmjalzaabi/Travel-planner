@@ -28,11 +28,22 @@ class _TripsScreenState extends State<TripsScreen> {
     final where = _filterStatus == 'all' ? null : 'status = ?';
     final whereArgs = _filterStatus == 'all' ? null : [_filterStatus];
     final trips = await db.query('trips', where: where, whereArgs: whereArgs, orderBy: 'departure ASC');
+    // Pre-fetch hotel counts per trip
+    final hotelsByTrip = <int, int>{};
+    for (final t in trips) {
+      final tid = t['id'] as int;
+      final h = await db.rawQuery('SELECT COUNT(*) as c FROM hotels WHERE trip_id = ?', [tid]);
+      hotelsByTrip[tid] = (h.first['c'] as int?) ?? 0;
+    }
     setState(() {
       _trips = trips.map((m) => Trip.fromMap(m)).toList();
+      _hotelsByTrip = hotelsByTrip;
       _isLoading = false;
     });
   }
+
+  /// Hotels count per trip id ( populated by _loadTrips ).
+  Map<int, int> _hotelsByTrip = {};
 
   Future<void> _deleteTrip(Trip trip) async {
     final confirm = await showDialog<bool>(
@@ -208,7 +219,32 @@ class _TripsScreenState extends State<TripsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _buildStatusChip(trip.status, colorScheme),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
+                  // hotels badge
+                  if ((_hotelsByTrip[trip.id] ?? 0) > 0)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.hotel, size: 11, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_hotelsByTrip[trip.id]} ${_hotelsByTrip[trip.id] == 1 ? 'hotel' : 'hotels'}',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   if (trip.totalBudget > 0)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
