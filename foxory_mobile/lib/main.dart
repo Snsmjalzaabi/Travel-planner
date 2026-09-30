@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
@@ -9,6 +10,7 @@ import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   final prefs = await SharedPreferences.getInstance();
 
   // Ensure sample data is seeded on first launch
@@ -19,13 +21,34 @@ void main() async {
   await db.close();
 
   final dbHelper = DatabaseHelper();
-
-  // Wire up alerts: passport expiry, visa expiry
   final alerts = AlertService(dbHelper);
-  await alerts.init();
-  await alerts.ensureChannel();
-  await alerts.requestPermission();
-  await alerts.scheduleDailyCheck(hour: 8, minute: 0);
+
+  // Initialize notification plugin — quick, but guard with timeout
+  // so a hung plugin init never blocks the splash.
+  const timeout = Duration(seconds: 10);
+  try {
+    await Future.any([alerts.init(), Future.delayed(timeout)]);
+  } catch (_) {
+    // init timed out or failed — notifications won't work, but app launches
+  }
+
+  // Create notification channel (Android only, fast)
+  try {
+    await Future.any([alerts.ensureChannel(), Future.delayed(timeout)]);
+  } catch (_) {}
+
+  // Request notification permission with timeout.
+  // On Android 13+ this may show a system dialog. If it doesn't
+  // appear within the timeout, continue — user can grant from
+  // Settings later and notifications will start working then.
+  try {
+    await Future.any([alerts.requestPermission(), Future.delayed(timeout)]);
+  } catch (_) {}
+
+  // Schedule daily check with timeout
+  try {
+    await Future.any([alerts.scheduleDailyCheck(hour: 8, minute: 0), Future.delayed(timeout)]);
+  } catch (_) {}
 
   runApp(FoxoryApp(prefs: prefs, dbHelper: dbHelper, alerts: alerts));
 }
