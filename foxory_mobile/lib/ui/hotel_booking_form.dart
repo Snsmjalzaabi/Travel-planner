@@ -139,14 +139,14 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
     final cs = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: required ? '$label *' : label,
-      prefixIcon: Icon(icon, size: 20, color: cs.onSurface.withOpacity(0.5)),
+      prefixIcon: Icon(icon, size: 20, color: cs.onSurface.withValues(alpha: 0.5)),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: cs.outline.withOpacity(0.3)),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.3)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: cs.outline.withOpacity(0.2)),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.2)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -154,7 +154,7 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       filled: true,
-      fillColor: cs.surfaceContainerHighest.withOpacity(0.4),
+      fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.4),
     );
   }
 
@@ -167,14 +167,14 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, size: 20, color: cs.onSurface.withOpacity(0.5)),
+          prefixIcon: Icon(icon, size: 20, color: cs.onSurface.withValues(alpha: 0.5)),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: cs.outline.withOpacity(0.3)),
+            borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.3)),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: cs.outline.withOpacity(0.2)),
+            borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.2)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -182,12 +182,12 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           filled: true,
-          fillColor: cs.surfaceContainerHighest.withOpacity(0.4),
+          fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.4),
         ),
         child: Text(
           value != null ? DateFormat('MMM d, y').format(value) : ' tap to set',
           style: value == null
-              ? GoogleFonts.inter(fontSize: 14, color: cs.onSurface.withOpacity(0.4))
+              ? GoogleFonts.inter(fontSize: 14, color: cs.onSurface.withValues(alpha: 0.4))
               : GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
@@ -197,17 +197,17 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
   Widget _currencyDropdown() {
     final cs = Theme.of(context).colorScheme;
     return DropdownButtonFormField<String>(
-      value: _currency,
+      initialValue: _currency,
       decoration: InputDecoration(
         labelText: 'Currency',
-        prefixIcon: Icon(Icons.attach_money, size: 20, color: cs.onSurface.withOpacity(0.5)),
+        prefixIcon: Icon(Icons.attach_money, size: 20, color: cs.onSurface.withValues(alpha: 0.5)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: cs.outline.withOpacity(0.3)),
+          borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: cs.outline.withOpacity(0.2)),
+          borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -215,7 +215,7 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         filled: true,
-        fillColor: cs.surfaceContainerHighest.withOpacity(0.4),
+        fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.4),
       ),
       items: const ['USD','EUR','GBP','AED','INR','CHF','CAD','AUD','THB','SGD','JPY']
           .map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 14))))
@@ -232,7 +232,7 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(0.1),
+            color: cs.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 16, color: cs.primary),
@@ -282,9 +282,9 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.08),
+                      color: Colors.red.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       _saveError!,
@@ -303,7 +303,7 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
                         decoration: BoxDecoration(
                           color: cs.surface,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: cs.outlineVariant.withOpacity(0.15)),
+                          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -407,16 +407,16 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: cs.surfaceContainerHighest.withOpacity(0.3),
+                                    color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.info_outline, size: 16, color: cs.onSurface.withOpacity(0.5)),
+                                      Icon(Icons.info_outline, size: 16, color: cs.onSurface.withValues(alpha: 0.5)),
                                       const SizedBox(width: 8),
                                       Text(
                                         'No trips yet. Create a trip first, then come back.',
-                                        style: GoogleFonts.inter(fontSize: 13, color: cs.onSurface.withOpacity(0.6)),
+                                        style: GoogleFonts.inter(fontSize: 13, color: cs.onSurface.withValues(alpha: 0.6)),
                                       ),
                                     ],
                                   ),
@@ -430,8 +430,8 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
                                     style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
                                   ),
                                   subtitle: Text(
-                                    '${DateFormat('MMM d, y').format(DateTime.tryParse(t['departure'] as String ?? '') ?? DateTime.now())} → ${DateFormat('MMM d, y').format(DateTime.tryParse(t['return_date'] as String ?? '') ?? DateTime.now())}',
-                                    style: GoogleFonts.inter(fontSize: 12, color: cs.onSurface.withOpacity(0.5)),
+                                    '${DateFormat('MMM d, y').format(DateTime.tryParse(t['departure'] as String? ?? '') ?? DateTime.now())} → ${DateFormat('MMM d, y').format(DateTime.tryParse(t['return_date'] as String? ?? '') ?? DateTime.now())}',
+                                    style: GoogleFonts.inter(fontSize: 12, color: cs.onSurface.withValues(alpha: 0.5)),
                                   ),
                                   onChanged: (id) => setState(() => _selectedTripId = id),
                                 ))),

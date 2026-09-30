@@ -45,24 +45,6 @@ class _TripsScreenState extends State<TripsScreen> {
   /// Hotels count per trip id ( populated by _loadTrips ).
   Map<int, int> _hotelsByTrip = {};
 
-  Future<void> _deleteTrip(Trip trip) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Delete Trip?'),
-        content: Text('Delete "${trip.name}"? This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(c, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirm == true && trip.id != null) {
-      final db = await DatabaseHelper().database;
-      await db.delete('trips', where: 'id = ?', whereArgs: [trip.id]);
-      _loadTrips();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,11 +94,11 @@ class _TripsScreenState extends State<TripsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.flight_takeoff, size: 80, color: colorScheme.onSurface.withOpacity(0.3)),
+          Icon(Icons.flight_takeoff, size: 80, color: colorScheme.onSurface.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
-          Text('No trips yet', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: colorScheme.onSurface.withOpacity(0.5))),
+          Text('No trips yet', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: colorScheme.onSurface.withValues(alpha: 0.5))),
           const SizedBox(height: 8),
-          Text('Start planning your next adventure', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withOpacity(0.4))),
+          Text('Start planning your next adventure', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.4))),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () => _showCreateTripDialog(context),
@@ -130,7 +112,6 @@ class _TripsScreenState extends State<TripsScreen> {
 
   Widget _tripCard(BuildContext context, Trip trip) {
     final colorScheme = Theme.of(context).colorScheme;
-    final daysUntil = trip.departure.difference(DateTime.now()).inDays;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -145,7 +126,7 @@ class _TripsScreenState extends State<TripsScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _statusColor(trip.status).withOpacity(0.15),
+                  color: _statusColor(trip.status).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(Icons.flight, color: _statusColor(trip.status), size: 22),
@@ -171,7 +152,7 @@ class _TripsScreenState extends State<TripsScreen> {
                       '${trip.originName} → ${trip.destName}',
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: colorScheme.onSurface.withOpacity(0.6),
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -206,7 +187,7 @@ class _TripsScreenState extends State<TripsScreen> {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
                             height: 120,
-                            color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                             child: Center(child: Icon(Icons.image_not_supported, color: Colors.grey.shade400, size: 32)),
                           ),
                         ),
@@ -226,7 +207,7 @@ class _TripsScreenState extends State<TripsScreen> {
                       margin: const EdgeInsets.only(bottom: 4),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -279,7 +260,7 @@ class _TripsScreenState extends State<TripsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: c.withOpacity(0.15),
+        color: c.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -332,7 +313,7 @@ class _TripsScreenState extends State<TripsScreen> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 20,
               offset: const Offset(0, -4),
             ),
@@ -362,7 +343,7 @@ class _TripsScreenState extends State<TripsScreen> {
                   children: [
                     Text(trip.name, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
-                    Text('${trip.originName} → ${trip.destName}', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withOpacity(0.6))),
+                    Text('${trip.originName} → ${trip.destName}', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.6))),
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 8,
@@ -439,6 +420,37 @@ class _TripsScreenState extends State<TripsScreen> {
   }
 
   void _showEditTripDialog(BuildContext context, Trip trip) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit trip — coming soon')));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (c) => CreateTripDialog(
+        onTripCreated: (updated) async {
+          await DatabaseHelper().update('trips', {
+            'name': updated.name,
+            'originName': updated.originName,
+            'destName': updated.destName,
+            'originCountry': updated.originCountry,
+            'destCountry': updated.destCountry,
+            'departure': updated.departure.toIso8601String(),
+            'returnDate': updated.returnDate.toIso8601String(),
+            'travelers': updated.travelers,
+            'baseCurrency': updated.baseCurrency,
+            'totalBudget': updated.totalBudget,
+            'transport': updated.transport,
+            'transportLabel': updated.transportLabel,
+            'status': updated.status,
+            'destinationImage': updated.destinationImage,
+            'updated_at': DateTime.now().toIso8601String(),
+          }, where: 'id = ?', whereArgs: [trip.id]);
+          _loadTrips();
+          if (context.mounted) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${updated.name} updated')));
+          }
+        },
+      ),
+    );
   }
 }

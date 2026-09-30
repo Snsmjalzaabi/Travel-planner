@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 
 class ItineraryDay {
   final int? id;

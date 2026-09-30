@@ -1,11 +1,10 @@
-import 'dart:math' as _math;
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as _math;
 import '../models/models.dart';
+import '../services/currency_service.dart';
 import '../core/database_helper.dart';
-import '../core/theme.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -34,6 +33,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   void _add() {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    String currency = 'AED';
+    final db = DatabaseHelper();
+    final currencyService = CurrencyService();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -41,40 +46,82 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, top: 16, left: 16, right: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(top: 8),
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-            ),
-            Text('Add Expense', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: TextField(decoration: const InputDecoration(labelText: 'Amount'), keyboardType: TextInputType.number)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: 'AED',
-                    decoration: const InputDecoration(labelText: 'Currency'),
-                    items: ['AED', 'USD', 'EUR', 'GBP', 'SAR'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) {},
+        child: StatefulBuilder(
+          builder: (context, setModalState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+              ),
+              Text('Add Expense', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: amountCtrl,
+                      decoration: const InputDecoration(labelText: 'Amount'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: currency,
+                      decoration: const InputDecoration(labelText: 'Currency'),
+                      items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                      onChanged: (v) => v != null ? setModalState(() => currency = v) : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (!mounted) return;
+                    final title = titleCtrl.text.trim();
+                    final amountStr = amountCtrl.text.trim();
+                    if (title.isEmpty || amountStr.isEmpty) return;
+
+                    final amount = double.tryParse(amountStr);
+                    if (amount == null || amount <= 0) return;
+
+                    final baseAmount = await currencyService.convert(amount, currency, 'USD');
+
+                    final now = DateTime.now().toIso8601String();
+                    final row = {
+                      'title': title,
+                      'category': 'other',
+                      'amount': amount,
+                      'currency': currency,
+                      'base_amount': baseAmount,
+                      'date': now,
+                      'created_at': now,
+                      'updated_at': now,
+                      'sync_enabled': 1,
+                    };
+                    await db.insert('expenses', row);
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+                    _load();
+                  },
+                  child: const Text('Save'),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Save'))),
-            const SizedBox(height: 8),
-          ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -104,11 +151,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.receipt_long, size: 64, color: colorScheme.onSurface.withOpacity(0.3)),
+                      Icon(Icons.receipt_long, size: 64, color: colorScheme.onSurface.withValues(alpha: 0.3)),
                       const SizedBox(height: 16),
-                      Text('No expenses yet', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: colorScheme.onSurface.withOpacity(0.5))),
+                      Text('No expenses yet', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: colorScheme.onSurface.withValues(alpha: 0.5))),
                       const SizedBox(height: 8),
-                      Text('Tap + to add your first expense', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withOpacity(0.4))),
+                      Text('Tap + to add your first expense', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.4))),
                     ],
                   ),
                 )
@@ -131,7 +178,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: _categoryColor(expense.category).withOpacity(0.15),
+            color: _categoryColor(expense.category).withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(_categoryIcon(expense.category), color: _categoryColor(expense.category), size: 20),
@@ -158,7 +205,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Widget _showChart(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     if (_expenses.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No expenses to chart yet')));
       return const SizedBox();

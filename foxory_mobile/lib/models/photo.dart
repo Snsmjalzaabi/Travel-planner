@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 
 class Photo {
   final int? id;

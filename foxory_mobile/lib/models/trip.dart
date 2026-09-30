@@ -1,10 +1,8 @@
-import 'package:sqflite/sqflite.dart';
 import 'hotel.dart';
 import 'flight.dart';
 import 'itinerary.dart';
 import 'packing.dart';
 import 'personal_info.dart';
-import 'package:flutter/material.dart';
 
 class Trip {
   final int? id;

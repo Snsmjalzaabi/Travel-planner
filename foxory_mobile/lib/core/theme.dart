@@ -40,28 +40,28 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(_cardRadius),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.15),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.15),
             width: 0.5,
           ),
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.2),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.2),
         thickness: 0.5,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_buttonRadius),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_buttonRadius),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.2),
+            color: colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -125,7 +125,7 @@ class AppTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: colorScheme.surface,
         selectedItemColor: colorScheme.primary,
-        unselectedItemColor: colorScheme.onSurface.withOpacity(0.5),
+        unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.5),
         type: BottomNavigationBarType.fixed,
         elevation: 2,
       ),
@@ -189,28 +189,28 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(_cardRadius),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.12),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.12),
             width: 0.5,
           ),
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.15),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.15),
         thickness: 0.5,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_buttonRadius),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.2),
+            color: colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_buttonRadius),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.15),
+            color: colorScheme.outline.withValues(alpha: 0.15),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -274,7 +274,7 @@ class AppTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: colorScheme.surface,
         selectedItemColor: colorScheme.primary,
-        unselectedItemColor: colorScheme.onSurface.withOpacity(0.4),
+        unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.4),
         type: BottomNavigationBarType.fixed,
         elevation: 2,
       ),
@@ -361,7 +361,7 @@ class AppTheme {
         fontSize: 12,
         fontWeight: FontWeight.w400,
         height: 1.4,
-        color: colorScheme.onSurface.withOpacity(0.7),
+        color: colorScheme.onSurface.withValues(alpha: 0.7),
       ),
       labelLarge: GoogleFonts.inter(
         fontSize: 14,
@@ -379,7 +379,7 @@ class AppTheme {
         fontSize: 11,
         fontWeight: FontWeight.w500,
         height: 1.3,
-        color: colorScheme.onSurface.withOpacity(0.6),
+        color: colorScheme.onSurface.withValues(alpha: 0.6),
       ),
     );
   }

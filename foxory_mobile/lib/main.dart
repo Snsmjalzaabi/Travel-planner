@@ -5,7 +5,7 @@ import 'package:path/path.dart';
 
 import 'app.dart';
 import 'core/database_helper.dart';
-import 'core/theme.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,5 +18,14 @@ void main() async {
   );
   await db.close();
 
-  runApp(FoxoryApp(prefs: prefs, dbHelper: DatabaseHelper()));
+  final dbHelper = DatabaseHelper();
+
+  // Wire up alerts: passport expiry, visa expiry
+  final alerts = AlertService(dbHelper);
+  await alerts.init();
+  await alerts.ensureChannel();
+  await alerts.requestPermission();
+  await alerts.scheduleDailyCheck(hour: 8, minute: 0);
+
+  runApp(FoxoryApp(prefs: prefs, dbHelper: dbHelper, alerts: alerts));
 }

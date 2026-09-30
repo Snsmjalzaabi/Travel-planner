@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme.dart';
 import '../core/database_helper.dart';
+import '../services/notification_service.dart';
 import 'ui/home_screen.dart';
 import 'ui/trips_screen.dart';
 import 'ui/planner_screen.dart';
@@ -11,11 +12,13 @@ import 'ui/more_screen.dart';
 class FoxoryApp extends StatefulWidget {
   final DatabaseHelper dbHelper;
   final SharedPreferences prefs;
+  final AlertService alerts;
 
   const FoxoryApp({
     super.key,
     required this.dbHelper,
     required this.prefs,
+    required this.alerts,
   });
 
   @override

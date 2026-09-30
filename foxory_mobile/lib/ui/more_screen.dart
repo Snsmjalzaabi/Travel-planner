@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../core/database_helper.dart';
-import '../core/app_settings.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../ui/hotel_booking_form.dart';
@@ -180,7 +179,7 @@ class _MoreScreenState extends State<MoreScreen> {
       subtitle = item.content.length > 60
           ? '${item.content.substring(0, 60)}...'
           : item.content;
-      dotColor = _priorityColor(TaskPriority.values[(item as Note).priority ?? 0]);
+      dotColor = _priorityColor(TaskPriority.values[(item.priority ?? 0)]);
     } else if (item is Task) {
       title = item.title;
       subtitle = item.dueDate != null
@@ -814,7 +813,7 @@ class _MoreScreenState extends State<MoreScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          h['name'] as String ?? 'Hotel',
+          h['name'] as String? ?? 'Hotel',
           style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: cs.onSurface),
         ),
         content: SingleChildScrollView(
@@ -829,8 +828,8 @@ class _MoreScreenState extends State<MoreScreen> {
                   (h['country'] as String?)?.isNotEmpty == true)
                 Text('${h['city']} — ${h['country']}'),
               const SizedBox(height: 4),
-              _hotelDetailRow('Check-in', DateFormat('MMM d, y').format(DateTime.tryParse(h['check_in'] as String ?? '') ?? DateTime.now()), Icons.calendar_today, cs),
-              _hotelDetailRow('Check-out', DateFormat('MMM d, y').format(DateTime.tryParse(h['check_out'] as String ?? '') ?? DateTime.now()), Icons.calendar_today, cs),
+              _hotelDetailRow('Check-in', DateFormat('MMM d, y').format(DateTime.tryParse(h['check_in'] as String? ?? '') ?? DateTime.now()), Icons.calendar_today, cs),
+              _hotelDetailRow('Check-out', DateFormat('MMM d, y').format(DateTime.tryParse(h['check_out'] as String? ?? '') ?? DateTime.now()), Icons.calendar_today, cs),
               const SizedBox(height: 4),
               if ((h['confirmation_number'] as String?)?.isNotEmpty == true)
                 _hotelDetailRow('Confirmation', h['confirmation_number']!, Icons.badge, cs),
@@ -875,13 +874,13 @@ class _MoreScreenState extends State<MoreScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: cs.onSurface.withOpacity(0.4)),
+          Icon(icon, size: 16, color: cs.onSurface.withValues(alpha: 0.4)),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, color: cs.onSurface.withOpacity(0.4), fontWeight: FontWeight.w500)),
+                Text(label, style: TextStyle(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.4), fontWeight: FontWeight.w500)),
                 const SizedBox(height: 1),
                 Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500), maxLines: 2, overflow: TextOverflow.ellipsis),
               ],

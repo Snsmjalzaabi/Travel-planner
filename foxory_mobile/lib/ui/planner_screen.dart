@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../core/database_helper.dart';
-import '../core/theme.dart';
 
 class PlannerScreen extends StatefulWidget {
   const PlannerScreen({super.key});
@@ -88,11 +87,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.calendar_today_outlined, size: 64, color: colorScheme.onSurface.withOpacity(0.3)),
+          Icon(Icons.calendar_today_outlined, size: 64, color: colorScheme.onSurface.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
-          Text('No active trips', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: colorScheme.onSurface.withOpacity(0.5))),
+          Text('No active trips', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: colorScheme.onSurface.withValues(alpha: 0.5))),
           const SizedBox(height: 8),
-          Text('Create a trip to start planning', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withOpacity(0.4))),
+          Text('Create a trip to start planning', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.4))),
         ],
       ),
     );
@@ -102,7 +101,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.2))),
+        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.2))),
       ),
       child: Row(
         children: [
@@ -128,19 +127,19 @@ class _PlannerScreenState extends State<PlannerScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: hasItems && _selectedTripId != null ? colorScheme.primary.withOpacity(0.1) : Colors.transparent,
+            color: hasItems && _selectedTripId != null ? colorScheme.primary.withValues(alpha: 0.1) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: hasItems && _selectedTripId != null ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.5)),
+              Icon(icon, size: 16, color: hasItems && _selectedTripId != null ? colorScheme.primary : colorScheme.onSurface.withValues(alpha: 0.5)),
               const SizedBox(width: 4),
               Text(
                 label,
                 style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: hasItems && _selectedTripId != null ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.5),
+                  color: hasItems && _selectedTripId != null ? colorScheme.primary : colorScheme.onSurface.withValues(alpha: 0.5),
                   fontWeight: hasItems && _selectedTripId != null ? FontWeight.w500 : FontWeight.normal,
                 ),
               ),
@@ -148,7 +147,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                 const SizedBox(width: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: colorScheme.primary.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: colorScheme.primary.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
                   child: Text(
                     '${_getTabCount(label)}',
                     style: GoogleFonts.inter(fontSize: 10, color: colorScheme.primary, fontWeight: FontWeight.w600),
@@ -177,7 +176,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      color: isSelected ? colorScheme.primary.withOpacity(0.1) : null,
+      color: isSelected ? colorScheme.primary.withValues(alpha: 0.1) : null,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -188,7 +187,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.5),
+                  color: colorScheme.primary.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.directions_car, color: colorScheme.primary, size: 20),
@@ -199,7 +198,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(trip.name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text('${trip.originName} → ${trip.destName}', style: GoogleFonts.inter(fontSize: 12, color: colorScheme.onSurface.withOpacity(0.5)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text('${trip.originName} → ${trip.destName}', style: GoogleFonts.inter(fontSize: 12, color: colorScheme.onSurface.withValues(alpha: 0.5)), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -220,7 +219,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.primary.withOpacity(0.2), width: 2),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,7 +238,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text('${t.originName} → ${t.destName}', style: GoogleFonts.inter(fontSize: 13, color: colorScheme.onSurface.withOpacity(0.7))),
+          Text('${t.originName} → ${t.destName}', style: GoogleFonts.inter(fontSize: 13, color: colorScheme.onSurface.withValues(alpha: 0.7))),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -261,7 +260,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Widget _plannerChip(IconData icon, String label, int count, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -271,7 +270,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
           const SizedBox(width: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(color: color.withOpacity(0.3), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(8)),
             child: Text(
               count > 0 ? '$count' : '0',
               style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: color),
@@ -336,7 +335,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
       ),
       title: Text(label),
@@ -374,7 +373,7 @@ class _TimelineEventCard extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(color: event.color.withOpacity(0.2), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: event.color.withValues(alpha: 0.2), shape: BoxShape.circle),
             child: Icon(event.icon, color: event.color, size: 16),
           ),
           const SizedBox(width: 12),

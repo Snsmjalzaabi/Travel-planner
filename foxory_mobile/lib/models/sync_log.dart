@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 
 class SyncLog {
   final int? id;

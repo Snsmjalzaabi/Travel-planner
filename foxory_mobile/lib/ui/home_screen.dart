@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/models.dart';
 import '../core/database_helper.dart';
-import '../core/theme.dart';
 import '../widgets/quick_capture_widget.dart';
+import '../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -146,11 +145,11 @@ class _HomeScreenState extends State<HomeScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colorScheme.primary.withOpacity(0.12),
+            colorScheme.primary.withValues(alpha: 0.12),
             colorScheme.surface,
           ],
         ),
-        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.12))),
+        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.12))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -160,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(_greeting, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              Text(DateTime.now().toString().split(' ')[0], style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withOpacity(0.5))),
+              Text(DateTime.now().toString().split(' ')[0], style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5))),
             ],
           ),
           Row(
@@ -169,16 +168,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.notifications_outlined, size: 20),
                 ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notifications coming soon')),
-                  );
-                },
+                onPressed: () => _fireAlertsNow(),
                 tooltip: 'Notifications',
               ),
             ],
@@ -208,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: InkWell(
-        onTap: () {},
+        onTap: () => _showTripDetail(trip),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -220,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _statusColor(trip.status).withOpacity(0.15),
+                      color: _statusColor(trip.status).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.flight, color: _statusColor(trip.status), size: 20),
@@ -231,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(trip.name, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text('${trip.originName} → ${trip.destName}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withOpacity(0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text('${trip.originName} → ${trip.destName}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
@@ -239,8 +234,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: const Icon(Icons.more_vert, size: 18),
                     itemBuilder: (c) => [
                       const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                      const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
                     ],
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _showTripDetail(trip);
+                      } else if (value == 'delete') {
+                        _deleteTrip(trip);
+                      }
+                    },
                   ),
                 ],
               ),
@@ -292,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: (daysUntil <= 7 ? Colors.orange : Colors.blue).withOpacity(0.12),
+                    color: (daysUntil <= 7 ? Colors.orange : Colors.blue).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -363,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: _expenseColor(expense.category).withOpacity(0.15),
+                  color: _expenseColor(expense.category).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(_expenseIcon(expense.category), color: _expenseColor(expense.category), size: 16),
@@ -391,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final accent = isExpired ? Colors.red : (passport.expiringSoon ? Colors.orange : Colors.green);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      color: accent.withOpacity(0.08),
+      color: accent.withValues(alpha: 0.08),
       child: InkWell(
         onTap: () {},
         borderRadius: BorderRadius.circular(12),
@@ -402,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.15),
+                  color: accent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.badge, color: accent, size: 16),
@@ -444,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.15),
+                  color: colorScheme.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.flight, color: colorScheme.primary, size: 16),
@@ -477,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.12),
+        color: Colors.grey.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -496,7 +498,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: color)),
@@ -509,11 +511,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.travel_explore, size: 64, color: colorScheme.onSurface.withOpacity(0.3)),
+          Icon(Icons.travel_explore, size: 64, color: colorScheme.onSurface.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
-          Text('No active trips', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface.withOpacity(0.5))),
+          Text('No active trips', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5))),
           const SizedBox(height: 8),
-          Text('Create a trip to start planning', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withOpacity(0.4))),
+          Text('Create a trip to start planning', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.4))),
         ],
       ),
     );
@@ -532,10 +534,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Color _priorityColor(TaskPriority priority) {
     switch (priority) {
-      case 0: return Colors.grey;
-      case 1: return Colors.orange;
-      case 2: return Colors.red;
-      default: return Colors.grey;
+      case TaskPriority.low: return Colors.grey;
+      case TaskPriority.medium: return Colors.orange;
+      case TaskPriority.high: return Colors.red;
     }
   }
 
@@ -576,6 +577,23 @@ class _HomeScreenState extends State<HomeScreen> {
       'CAD': 'C\$',
     };
     return '${symbols[currency] ?? currency}${amount.toStringAsFixed(0)}';
+  }
+
+  void _showTripDetail(Trip trip) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Trip detail — coming soon')),
+    );
+  }
+
+  void _deleteTrip(Trip trip) async {
+    final db = DatabaseHelper();
+    await db.delete('trips', where: 'id = ?', whereArgs: [trip.id]);
+    _loadData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${trip.name} deleted')),
+      );
+    }
   }
 
   void _handleQuickCapture(String type, {String? text, List<String>? tags}) {
@@ -644,6 +662,15 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
       default:
         break;
+    }
+  }
+
+  void _fireAlertsNow() async {
+    final count = await AlertService.instance?.fireAlertsNow() ?? 0;
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count alert${count == 1 ? "" : "s"} fired')),
+      );
     }
   }
 }

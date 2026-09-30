@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 
 /// Find a trip whose destination matches [city] (case-insensitive substring /
 /// token match) and whose date range overlaps [checkIn]–[checkOut].

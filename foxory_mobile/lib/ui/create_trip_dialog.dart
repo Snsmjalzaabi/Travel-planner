@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import '../core/database_helper.dart';
 import '../models/models.dart';
 
 class CreateTripDialog extends StatefulWidget {
@@ -30,7 +29,6 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
   String _baseCurrency = 'USD';
   double _totalBudget = 0;
   String? _destinationImage;
-  bool _gotCurrency = false;
   bool _showPersonal = false;
   bool _showAdvanced = false;
 
@@ -63,52 +61,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
     super.dispose();
   }
 
-  List<String> _countryList() {
-    return [
-      'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina','Armenia','Australia','Austria','Azerbaijan',
-      'Bahamas','Bahrain','Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi',
-      'Cabo Verde','Cambodia','Cameroon','Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica','Côte d\'Ivoire','Croatia','Cuba','Cyprus','Czech Republic',
-      'Denmark','Djibouti','Dominican Republic',
-      'Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia','Eswatini','Ethiopia',
-      'Fiji','Finland','France',
-      'Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala','Guinea','Guinea-Bissau',
-      'Guyana',
-      'Haiti','Honduras','Hungary',
-      'Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy',
-      'Jamaica','Japan','Jordan',
-      'Kazakhstan','Kenya','Kiribati','Kuwait','Kyrgyzstan',
-      'Laos','Latvia','Lebanon','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg',
-      'Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius','Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar',
-      'Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','North Macedonia','Norway',
-      'Oman',
-      'Pakistan','Palau','Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal',
-      'Qatar',
-      'Romania','Russia','Rwanda',
-      'Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino','São Tomé and Príncipe','Saudi Arabia','Senegal','Serbia','Seychelles','Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria',
-      'Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan','Tuvalu',
-      'Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan',
-      'Vanuatu','Vatican City','Venezuela','Vietnam',
-      'Yemen',
-      'Zambia','Zimbabwe',
-    ];
-  }
 
-  final Map<String, String> _currencyMap = {
-    'USD': '\$',
-    'EUR': '€',
-    'GBP': '£',
-    'AED': 'د.إ',
-    'SAR': '﷼',
-    'INR': '₹',
-    'TRY': '₺',
-    'BRL': 'R\$',
-    'CAD': 'C\$',
-    'AUD': 'A\$',
-    'JPY': '¥',
-    'CNY': '¥',
-    'KRW': '₩',
-    'SGD': 'S\$',
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +113,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -177,7 +130,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                             style: GoogleFonts.inter(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: _showPersonal ? colorScheme.onSurface : colorScheme.onSurface.withOpacity(0.5),
+                              color: _showPersonal ? colorScheme.onSurface : colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -206,7 +159,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     filled: true,
-                    fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ),
                   style: GoogleFonts.inter(fontSize: 14),
                   validator: (v) => v == null || v.isEmpty ? 'Trip name is required' : null,
@@ -225,7 +178,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         ),
                         style: GoogleFonts.inter(fontSize: 14),
                       ),
@@ -241,7 +194,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         ),
                         style: GoogleFonts.inter(fontSize: 14),
                       ),
@@ -254,14 +207,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _originCountryCtrl.text.isEmpty ? null : _originCountryCtrl.text,
+                        initialValue: _originCountryCtrl.text.isEmpty ? null : _originCountryCtrl.text,
                         decoration: InputDecoration(
                           labelText: 'Origin Country',
                           border: const OutlineInputBorder(),
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         ),
                         items: _countries.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 13)))).toList(),
                         onChanged: (v) {
@@ -272,14 +225,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _destCountryCtrl.text.isEmpty ? null : _destCountryCtrl.text,
+                        initialValue: _destCountryCtrl.text.isEmpty ? null : _destCountryCtrl.text,
                         decoration: InputDecoration(
                           labelText: 'Destination Country',
                           border: const OutlineInputBorder(),
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         ),
                         items: _countries.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 13)))).toList(),
                         onChanged: (v) {
@@ -301,7 +254,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     filled: true,
-                    fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ),
                   style: GoogleFonts.inter(fontSize: 14),
                   onChanged: (v) {
@@ -361,14 +314,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: DropdownButtonFormField<int>(
-                              value: _travelers,
+                              initialValue: _travelers,
                               decoration: InputDecoration(
                                 labelText: 'Travelers',
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                 border: const OutlineInputBorder(),
                                 filled: true,
-                                fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                               ),
                               items: List.generate(10, (i) => i + 1).map((n) => DropdownMenuItem(value: n, child: Text('$n'))).toList(),
                               onChanged: (v) {
@@ -389,7 +342,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         ),
                         items: [
                           DropdownMenuItem(value: 'flight', child: Text('✈️ Flight', style: GoogleFonts.inter(fontSize: 13))),
@@ -421,14 +374,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _status,
+                        initialValue: _status,
                         decoration: InputDecoration(
                           labelText: 'Status',
                           border: const OutlineInputBorder(),
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         ),
                         items: [
                           DropdownMenuItem(value: 'idea', child: Text('💡 Idea', style: GoogleFonts.inter(fontSize: 13))),
@@ -453,7 +406,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           filled: true,
-                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         ),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         style: GoogleFonts.inter(fontSize: 14),
@@ -478,10 +431,10 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     filled: true,
-                    fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ),
                   style: GoogleFonts.inter(fontSize: 13),
-                  onChanged: (_) => _gotCurrency = false,
+                  onChanged: (_) {},
                 ),
                 const SizedBox(height: 16),
                 // Advanced toggle
@@ -491,7 +444,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -508,7 +461,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                             style: GoogleFonts.inter(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: _showAdvanced ? colorScheme.onSurface : colorScheme.onSurface.withOpacity(0.5),
+                              color: _showAdvanced ? colorScheme.onSurface : colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -527,14 +480,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _flightType,
+                          initialValue: _flightType,
                           decoration: InputDecoration(
                             labelText: 'Flight Type',
                             border: const OutlineInputBorder(),
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                             filled: true,
-                            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                           ),
                           items: [
                             DropdownMenuItem(value: 'round_trip', child: Text('Round Trip', style: GoogleFonts.inter(fontSize: 13))),
@@ -549,14 +502,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _flightClass,
+                          initialValue: _flightClass,
                           decoration: InputDecoration(
                             labelText: 'Class',
                             border: const OutlineInputBorder(),
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                             filled: true,
-                            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                           ),
                           items: [
                             DropdownMenuItem(value: 'economy', child: Text('Economy', style: GoogleFonts.inter(fontSize: 13))),
@@ -573,14 +526,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: _accommodationType,
+                    initialValue: _accommodationType,
                     decoration: InputDecoration(
                       labelText: 'Accommodation Type',
                       border: const OutlineInputBorder(),
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                       filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                     ),
                     items: [
                       DropdownMenuItem(value: 'hotel', child: Text('Hotel', style: GoogleFonts.inter(fontSize: 13))),
@@ -625,14 +578,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _flightType,
+                initialValue: _flightType,
                 decoration: InputDecoration(
                   labelText: 'Flight Type',
                   border: const OutlineInputBorder(),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 ),
                 items: [
                   DropdownMenuItem(value: 'round_trip', child: Text('Round Trip', style: GoogleFonts.inter(fontSize: 13))),
@@ -647,14 +600,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _flightClass,
+                initialValue: _flightClass,
                 decoration: InputDecoration(
                   labelText: 'Class',
                   border: const OutlineInputBorder(),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 ),
                 items: [
                   DropdownMenuItem(value: 'economy', child: Text('Economy', style: GoogleFonts.inter(fontSize: 13))),
@@ -671,14 +624,14 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          value: _accommodationType,
+          initialValue: _accommodationType,
           decoration: InputDecoration(
             labelText: 'Accommodation Type',
             border: const OutlineInputBorder(),
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             filled: true,
-            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           ),
           items: [
             DropdownMenuItem(value: 'hotel', child: Text('Hotel', style: GoogleFonts.inter(fontSize: 13))),
@@ -812,13 +765,13 @@ class InputContainer extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.4)),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(12),
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       ),
       child: Row(
         children: [
-          Icon(icon, color: colorScheme.onSurface.withOpacity(0.5), size: 16),
+          Icon(icon, color: colorScheme.onSurface.withValues(alpha: 0.5), size: 16),
           const SizedBox(width: 8),
           Expanded(child: child),
         ],
