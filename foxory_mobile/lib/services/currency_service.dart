@@ -27,16 +27,20 @@ class CurrencyService {
 
   /// Convert [amount] from [from] currency to [to] currency.
   Future<double> convert(double amount, String from, String to) async {
-    if (from == to) return amount;
-    final rate = await _getRate(from, to);
+    final normalizedFrom = _normalize(from);
+    final normalizedTo = _normalize(to);
+    if (normalizedFrom == normalizedTo) return amount;
+    final rate = await getRate(normalizedFrom, normalizedTo);
     return amount * rate;
   }
 
-  Future<double> _getRate(String from, String to) async {
-    if (from == to) return 1.0;
+  Future<double> getRate(String from, String to) async {
+    final normalizedFrom = _normalize(from);
+    final normalizedTo = _normalize(to);
+    if (normalizedFrom == normalizedTo) return 1.0;
 
     final prefs = await _getPrefs();
-    final cacheKey = 'fx_${from}_$to';
+    final cacheKey = 'fx_${normalizedFrom}_$normalizedTo';
     final cached = prefs.getString(cacheKey);
 
     if (cached != null) {
@@ -57,12 +61,12 @@ class CurrencyService {
     }
 
     try {
-      final url = Uri.parse('$_apiBase/latest?from=$from&to=$to');
-      final resp = await _client.get(url);
+      final url = Uri.parse('$_apiBase/latest?from=$normalizedFrom&to=$normalizedTo');
+      final resp = await _client.get(url).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         final rates = data['rates'] as Map<String, dynamic>?;
-        final raw = rates?[to];
+        final raw = rates?[normalizedTo];
         if (raw != null) {
           final rate = (raw as num).toDouble();
           if (rate > 0) {
@@ -81,4 +85,6 @@ class CurrencyService {
 
     return 1.0;
   }
+
+  String _normalize(String currency) => currency.trim().toUpperCase();
 }

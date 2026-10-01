@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/models.dart';
 
 class CreateTripDialog extends StatefulWidget {
-  final Function(Trip) onTripCreated;
+  final Future<void> Function(Trip) onTripCreated;
   const CreateTripDialog({super.key, required this.onTripCreated});
 
   @override
@@ -26,6 +26,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
   int _travelers = 1;
   String _transport = 'flight';
   String _status = 'planning';
+  final _currencyCtrl = TextEditingController(text: 'USD');
   String _baseCurrency = 'USD';
   double _totalBudget = 0;
   String? _destinationImage;
@@ -58,6 +59,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
     _originCountryCtrl.dispose();
     _destCountryCtrl.dispose();
     _destLatLngCtrl.dispose();
+    _currencyCtrl.dispose();
     super.dispose();
   }
 
@@ -244,23 +246,26 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                 ),
                 const SizedBox(height: 12),
                 // Currency
-                TextFormField(
-                  controller: TextEditingController(text: _baseCurrency),
+                DropdownButtonFormField<String>(
+                  initialValue: _baseCurrency,
                   decoration: InputDecoration(
                     labelText: 'Base Currency',
                     border: const OutlineInputBorder(),
                     prefixIcon: const Icon(Icons.attach_money),
-                    hintText: 'e.g. USD, EUR, AED',
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ),
-                  style: GoogleFonts.inter(fontSize: 14),
+                  items: const ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR', 'JPY', 'AUD', 'CAD']
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
                   onChanged: (v) {
-                    if (v.length <= 3) {
-                      _baseCurrency = v.toUpperCase();
-                      setState(() {});
+                    if (v != null) {
+                      setState(() {
+                        _baseCurrency = v;
+                        _currencyCtrl.text = v;
+                      });
                     }
                   },
                   validator: (v) => v == null || v.isEmpty ? 'Currency is required' : null,
@@ -673,7 +678,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
     }
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
     final name = _nameCtrl.text.trim();
@@ -708,7 +713,8 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
           : null,
     );
 
-    widget.onTripCreated(trip);
+    await widget.onTripCreated(trip);
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (c) => AlertDialog(

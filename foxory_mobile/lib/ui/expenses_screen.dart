@@ -16,6 +16,8 @@ class ExpensesScreen extends StatefulWidget {
 class _ExpensesScreenState extends State<ExpensesScreen> {
   List<Expense> _expenses = [];
   bool _isLoading = true;
+  String _displayCurrency = 'AED';
+  final Map<String, double> _convertedAmounts = {};
 
   @override
   void initState() {
@@ -30,6 +32,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       _expenses = rows.map((m) => Expense.fromMap(m)).toList();
       _isLoading = false;
     });
+    await _refreshConvertedAmounts();
   }
 
   void _add() {
@@ -134,6 +137,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       appBar: AppBar(
         title: Text('Expenses', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         actions: [
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _displayCurrency,
+              items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR']
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
+              onChanged: (v) async {
+                if (v == null) return;
+                setState(() => _displayCurrency = v);
+                await _refreshConvertedAmounts();
+              },
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: _add,
@@ -195,13 +211,52 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Text(
-          NumberFormat.currency(symbol: _currencySymbol(expense.currency)).format(expense.amount),
-          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: colorScheme.primary),
+        trailing: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              _formatDisplayedAmount(expense),
+              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: colorScheme.primary),
+            ),
+            if (expense.currency != _displayCurrency)
+              Text(
+                '${NumberFormat.currency(symbol: _currencySymbol(expense.currency)).format(expense.amount)} original',
+                style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade500),
+              ),
+          ],
         ),
         onTap: () {},
       ),
     );
+  }
+
+  String _formatDisplayedAmount(Expense expense) {
+    final key = _expenseConversionKey(expense);
+    final amount = expense.currency == _displayCurrency
+        ? expense.amount
+        : (_convertedAmounts[key] ?? expense.amount);
+    return NumberFormat.currency(symbol: _currencySymbol(_displayCurrency)).format(amount);
+  }
+
+  String _expenseConversionKey(Expense e) => '${e.id ?? e.createdAt.millisecondsSinceEpoch}_${e.currency}_$_displayCurrency';
+
+  Future<void> _refreshConvertedAmounts() async {
+    if (_expenses.isEmpty) return;
+    final service = CurrencyService();
+    final next = <String, double>{};
+    for (final expense in _expenses) {
+      final key = _expenseConversionKey(expense);
+      if (expense.currency == _displayCurrency) {
+        next[key] = expense.amount;
+      } else {
+        next[key] = await service.convert(expense.amount, expense.currency, _displayCurrency);
+      }
+    }
+    if (!mounted) return;
+    setState(() => _convertedAmounts
+      ..clear()
+      ..addAll(next));
   }
 
   Widget _showChart(BuildContext context) {
@@ -214,7 +269,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final Map<String, double> categoryTotals = {};
     for (final e in _expenses) {
       final cat = e.category.isNotEmpty ? e.category : 'other';
-      categoryTotals[cat] = (categoryTotals[cat] ?? 0) + e.amount;
+      final key = _expenseConversionKey(e);
+      final displayAmount = e.currency == _displayCurrency ? e.amount : (_convertedAmounts[key] ?? e.amount);
+      categoryTotals[cat] = (categoryTotals[cat] ?? 0) + displayAmount;
     }
 
     final entries = categoryTotals.entries.toList();
@@ -247,7 +304,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 children: [
                   Text('Spending by Category', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
-                  Text('Total: ${NumberFormat.currency(symbol: '\$').format(total)}', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey.shade500)),
+                  Text('Total: ${NumberFormat.currency(symbol: _currencySymbol(_displayCurrency)).format(total)}', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey.shade500)),
                   const SizedBox(height: 20),
                   SizedBox(
                     height: 200,
@@ -266,7 +323,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              '${e.key}: ${NumberFormat.currency(symbol: '\$').format(e.value)}',
+                              '${e.key}: ${NumberFormat.currency(symbol: _currencySymbol(_displayCurrency)).format(e.value)}',
                               style: GoogleFonts.inter(fontSize: 12),
                               overflow: TextOverflow.ellipsis,
                             ),

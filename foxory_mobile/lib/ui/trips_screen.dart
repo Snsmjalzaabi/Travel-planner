@@ -527,9 +527,12 @@ class _TripsScreenState extends State<TripsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (c) => CreateTripDialog(
-        onTripCreated: (trip) {
-          _loadTrips();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${trip.name} created')));
+        onTripCreated: (trip) async {
+          await DatabaseHelper().insert('trips', trip.toMap()..remove('id'));
+          await _loadTrips();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${trip.name} created')));
+          }
         },
       ),
     );
@@ -543,23 +546,9 @@ class _TripsScreenState extends State<TripsScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (c) => CreateTripDialog(
         onTripCreated: (updated) async {
-          await DatabaseHelper().update('trips', {
-            'name': updated.name,
-            'originName': updated.originName,
-            'destName': updated.destName,
-            'originCountry': updated.originCountry,
-            'destCountry': updated.destCountry,
-            'departure': updated.departure.toIso8601String(),
-            'returnDate': updated.returnDate.toIso8601String(),
-            'travelers': updated.travelers,
-            'baseCurrency': updated.baseCurrency,
-            'totalBudget': updated.totalBudget,
-            'transport': updated.transport,
-            'transportLabel': updated.transportLabel,
-            'status': updated.status,
-            'destinationImage': updated.destinationImage,
-            'updated_at': DateTime.now().toIso8601String(),
-          }, where: 'id = ?', whereArgs: [trip.id]);
+          final data = updated.toMap()..remove('id');
+          data['updated_at'] = DateTime.now().toIso8601String();
+          await DatabaseHelper().update('trips', data, where: 'id = ?', whereArgs: [trip.id]);
           _loadTrips();
           if (context.mounted) {
             Navigator.pop(context);
