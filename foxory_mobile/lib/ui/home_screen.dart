@@ -569,6 +569,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'GBP': '£',
       'AED': 'د.إ',
       'INR': '₹',
+      'UZS': 'soʻm',
       'JPY': '¥',
       'CNY': '¥',
       'KRW': '₩',

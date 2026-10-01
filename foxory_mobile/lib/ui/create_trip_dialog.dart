@@ -289,7 +289,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ),
-                  items: const ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR', 'JPY', 'AUD', 'CAD']
+                  items: const ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR', 'UZS', 'JPY', 'AUD', 'CAD']
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
                   onChanged: (v) {

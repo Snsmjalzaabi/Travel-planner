@@ -217,7 +217,7 @@ class _HotelBookingFormState extends State<HotelBookingForm> {
         filled: true,
         fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.4),
       ),
-      items: const ['USD','EUR','GBP','AED','INR','CHF','CAD','AUD','THB','SGD','JPY']
+      items: const ['USD','EUR','GBP','AED','INR','UZS','CHF','CAD','AUD','THB','SGD','JPY']
           .map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.inter(fontSize: 14))))
           .toList(),
       onChanged: (v) => setState(() => _currency = v ?? 'USD'),

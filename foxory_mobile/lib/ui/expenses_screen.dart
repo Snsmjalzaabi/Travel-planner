@@ -127,7 +127,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       child: DropdownButtonFormField<String>(
                         initialValue: currency,
                         decoration: const InputDecoration(labelText: 'Currency', border: OutlineInputBorder()),
-                        items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR']
+                        items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR', 'UZS']
                             .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                             .toList(),
                         onChanged: (v) => v != null ? setModalState(() => currency = v) : null,
@@ -220,7 +220,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _displayCurrency,
-              items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR']
+              items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR', 'UZS']
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),
               onChanged: (v) async {
@@ -511,6 +511,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       'GBP': '£',
       'AED': 'د.إ',
       'INR': '₹',
+      'UZS': 'soʻm',
       'JPY': '¥',
       'CNY': '¥',
       'KRW': '₩',
