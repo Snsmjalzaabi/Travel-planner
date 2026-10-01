@@ -18,7 +18,35 @@ class DatabaseHelper {
   Future<Database> _initDB() async {
     final docsDir = await getApplicationDocumentsDirectory();
     final dbPath = join(docsDir.path, 'foxory.db');
-    return openDatabase(dbPath, version: 1, onCreate: _onCreate);
+    return openDatabase(
+      dbPath,
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+      onOpen: (db) async => _ensureSchema(db),
+    );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    await _ensureSchema(db);
+  }
+
+  Future<void> _ensureSchema(Database db) async {
+    await _addColumnIfMissing(db, 'trips', 'transport_label', 'TEXT DEFAULT \'Flight\'');
+    await _addColumnIfMissing(db, 'trips', 'destination_image', 'TEXT');
+  }
+
+  Future<void> _addColumnIfMissing(
+    Database db,
+    String table,
+    String column,
+    String definition,
+  ) async {
+    final info = await db.rawQuery('PRAGMA table_info($table)');
+    final exists = info.any((row) => row['name'] == column);
+    if (!exists) {
+      await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -40,6 +68,7 @@ class DatabaseHelper {
         "base_currency" TEXT DEFAULT 'USD',
         "base_rate" REAL,
         "transport_type" TEXT DEFAULT 'flight',
+        "transport_label" TEXT DEFAULT 'Flight',
         "status" TEXT DEFAULT 'IDEA',
         "readiness" INTEGER DEFAULT 0,
         "distance" REAL,
@@ -48,6 +77,7 @@ class DatabaseHelper {
         "travel_time_source" TEXT,
         "total_budget" REAL DEFAULT 0,
         "distance_km" REAL,
+        "destination_image" TEXT,
         "attractions" TEXT DEFAULT '',
         "notes" TEXT DEFAULT '',
         "created_at" TEXT NOT NULL,

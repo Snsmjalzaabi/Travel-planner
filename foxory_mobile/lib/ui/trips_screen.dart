@@ -112,145 +112,156 @@ class _TripsScreenState extends State<TripsScreen> {
 
   Widget _tripCard(BuildContext context, Trip trip) {
     final colorScheme = Theme.of(context).colorScheme;
+    final dateRange = '${DateFormat('MMM d').format(trip.departure)} – ${DateFormat('MMM d, y').format(trip.returnDate)}';
+    final nights = trip.nights <= 0 ? 'Day trip' : '${trip.nights} night${trip.nights == 1 ? '' : 's'}';
+    final budgetText = trip.totalBudget > 0
+        ? NumberFormat.currency(symbol: _currencySymbol(trip.baseCurrency)).format(trip.totalBudget)
+        : 'No budget';
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _showTripDetail(context, trip),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Trip icon with status color
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: _statusColor(trip.status).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.flight, color: _statusColor(trip.status), size: 22),
-              ),
-              const SizedBox(width: 12),
-              // Trip info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      trip.name,
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${trip.originName} → ${trip.destName}',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
-                        Text(
-                          DateFormat('MMM d, y').format(trip.departure),
-                          style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
-                        Text(
-                          DateFormat('MMM d, y').format(trip.returnDate),
-                          style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
-                        ),
-                      ],
-                    ),
-                    if (trip.destinationImage != null)
-                      const SizedBox(height: 8),
-                    if (trip.destinationImage != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          trip.destinationImage!,
-                          width: double.infinity,
-                          height: 120,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 120,
-                            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                            child: Center(child: Icon(Icons.image_not_supported, color: Colors.grey.shade400, size: 32)),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              // Status + chevron
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildStatusChip(trip.status, colorScheme),
-                  const SizedBox(height: 6),
-                  // hotels badge
-                  if ((_hotelsByTrip[trip.id] ?? 0) > 0)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.hotel, size: 11, color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${_hotelsByTrip[trip.id]} ${_hotelsByTrip[trip.id] == 1 ? 'hotel' : 'hotels'}',
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: _statusColor(trip.status).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                  if (trip.totalBudget > 0)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    child: Icon(Icons.flight_takeoff, color: _statusColor(trip.status), size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Budget',
-                          style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade500),
-                        ),
-                        Text(
-                          NumberFormat.currency(symbol: _currencySymbol(trip.baseCurrency)).format(trip.totalBudget),
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.primary,
+                          trip.name,
+                          style: GoogleFonts.poppins(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onSurface,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                trip.originName,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: colorScheme.onSurface.withValues(alpha: 0.65),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Icon(Icons.arrow_forward, size: 15, color: colorScheme.primary),
+                            ),
+                            Expanded(
+                              child: Text(
+                                trip.destName,
+                                textAlign: TextAlign.end,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: colorScheme.onSurface.withValues(alpha: 0.65),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  const SizedBox(height: 4),
-                  const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildStatusChip(trip.status, colorScheme),
                 ],
               ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _tripInfoPill(Icons.calendar_month, dateRange),
+                  _tripInfoPill(Icons.hotel_outlined, nights),
+                  _tripInfoPill(Icons.people_outline, '${trip.travelers} traveler${trip.travelers == 1 ? '' : 's'}'),
+                  _tripInfoPill(Icons.directions_transit_outlined, trip.transportLabel),
+                  if ((_hotelsByTrip[trip.id] ?? 0) > 0)
+                    _tripInfoPill(Icons.hotel, '${_hotelsByTrip[trip.id]} hotel${_hotelsByTrip[trip.id] == 1 ? '' : 's'}'),
+                  _tripInfoPill(Icons.account_balance_wallet_outlined, budgetText),
+                ],
+              ),
+              if (trip.destinationImage != null) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    trip.destinationImage!,
+                    width: double.infinity,
+                    height: 140,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 140,
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      child: Center(child: Icon(Icons.image_not_supported, color: Colors.grey.shade400, size: 32)),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _tripInfoPill(IconData icon, String value) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: cs.onSurface.withValues(alpha: 0.65)),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 190),
+            child: Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                height: 1.2,
+                fontWeight: FontWeight.w500,
+                color: cs.onSurface.withValues(alpha: 0.76),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -300,89 +311,194 @@ class _TripsScreenState extends State<TripsScreen> {
 
   void _showTripDetail(BuildContext context, Trip trip) {
     final colorScheme = Theme.of(context).colorScheme;
+    final dateRange = '${DateFormat('MMM d').format(trip.departure)} – ${DateFormat('MMM d, y').format(trip.returnDate)}';
+    final budget = trip.totalBudget > 0
+        ? NumberFormat.currency(symbol: _currencySymbol(trip.baseCurrency)).format(trip.totalBudget)
+        : 'No budget set';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (c) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 20,
-              offset: const Offset(0, -4),
+      builder: (sheetContext) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.68,
+        minChildSize: 0.45,
+        maxChildSize: 0.92,
+        builder: (context, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        trip.name,
+                        style: GoogleFonts.poppins(fontSize: 23, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${trip.originName} → ${trip.destName}',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          height: 1.35,
+                          color: colorScheme.onSurface.withValues(alpha: 0.68),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 12),
+                _buildStatusChip(trip.status, colorScheme),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colorScheme.primary.withValues(alpha: 0.12)),
               ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(trip.name, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Text('${trip.originName} → ${trip.destName}', style: GoogleFonts.inter(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.6))),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _detailTile(Icons.calendar_today, 'Departure', DateFormat('MMM d, y').format(trip.departure)),
-                        _detailTile(Icons.calendar_today, 'Return', DateFormat('MMM d, y').format(trip.returnDate)),
-                        _detailTile(Icons.people, 'Travelers', '${trip.travelers}'),
-                        _detailTile(Icons.flight, 'Transport', trip.transportLabel),
-                        if (trip.originCountry != 'Unknown' && trip.destCountry != 'Unknown')
-                          _detailTile(Icons.flag, 'Route', '${trip.originCountry} → ${trip.destCountry}'),
-                        if (trip.totalBudget > 0)
-                          _detailTile(Icons.attach_money, 'Budget', NumberFormat.currency(symbol: _currencySymbol(trip.baseCurrency)).format(trip.totalBudget)),
-                        if (trip.destinationImage != null)
-                          _detailTile(Icons.place, 'Destination', trip.destName),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.pop(c);
-                          _showEditTripDialog(context, trip);
-                        },
-                        child: const Text('Edit Trip'),
-                      ),
-                    ),
+              child: Column(
+                children: [
+                  _detailRow(Icons.calendar_month, 'Dates', dateRange),
+                  const Divider(height: 20),
+                  _detailRow(Icons.hotel_outlined, 'Length', trip.nights <= 0 ? 'Day trip' : '${trip.nights} nights'),
+                  const Divider(height: 20),
+                  _detailRow(Icons.people_outline, 'Travelers', '${trip.travelers}'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.38),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                children: [
+                  _detailRow(Icons.directions_transit_outlined, 'Transport', trip.transportLabel),
+                  const Divider(height: 20),
+                  _detailRow(Icons.account_balance_wallet_outlined, 'Budget', budget),
+                  if (trip.originCountry != 'Unknown' || trip.destCountry != 'Unknown') ...[
+                    const Divider(height: 20),
+                    _detailRow(Icons.flag_outlined, 'Countries', '${trip.originCountry} → ${trip.destCountry}'),
                   ],
+                ],
+              ),
+            ),
+            if (trip.attractions.isNotEmpty || trip.notes.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Text('Notes', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  [...trip.attractions, ...trip.notes].join('\n'),
+                  style: GoogleFonts.inter(fontSize: 14, height: 1.45),
                 ),
               ),
-              const SizedBox(height: 16),
             ],
-          ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Close'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      _showEditTripDialog(context, trip);
+                    },
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Edit Trip'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
+  Widget _detailRow(IconData icon, String label, String value) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: cs.primary.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: cs.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface.withValues(alpha: 0.55),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Old compact detail row kept for future smaller layouts.
+  // ignore: unused_element
   Widget _detailTile(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

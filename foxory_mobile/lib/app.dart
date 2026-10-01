@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme.dart';
 import '../core/database_helper.dart';
 import '../services/notification_service.dart';
+import '../core/app_settings.dart';
+import '../services/local_pi_sync_service.dart';
 import 'ui/home_screen.dart';
 import 'ui/trips_screen.dart';
 import 'ui/planner_screen.dart';
@@ -84,11 +86,7 @@ class MainShell extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'Sync with Pi',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sync coming soon')),
-              );
-            },
+            onPressed: () => _syncNow(context),
           ),
           const SizedBox(width: 8),
         ],
@@ -145,6 +143,27 @@ class MainShell extends StatelessWidget {
         ],
       ),
       floatingActionButton: null,
+    );
+  }
+
+  Future<void> _syncNow(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Syncing to Pi...')),
+    );
+
+    final settings = AppSettings();
+    await settings.init();
+    final result = await LocalPiSyncService(
+      settings: settings,
+      dbHelper: DatabaseHelper(),
+    ).uploadAll();
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.success ? Colors.green : Colors.orange,
+      ),
     );
   }
 

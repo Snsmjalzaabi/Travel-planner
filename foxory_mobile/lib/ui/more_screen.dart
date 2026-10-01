@@ -4,6 +4,8 @@ import '../core/database_helper.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../ui/hotel_booking_form.dart';
+import '../core/app_settings.dart';
+import '../services/local_pi_sync_service.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -19,6 +21,9 @@ class _MoreScreenState extends State<MoreScreen> {
   List<AppFile> _files = [];
   List<Map<String, dynamic>> _hotels = [];
   bool _isLoading = true;
+  bool _isSyncing = false;
+  String? _lastSyncMessage;
+  bool? _lastSyncSuccess;
 
   @override
   void initState() {
@@ -311,39 +316,125 @@ class _MoreScreenState extends State<MoreScreen> {
   }
 
   Widget _buildSyncStatus() {
-    return const Text(
-      'Not configured',
-      style: TextStyle(fontSize: 12, color: Colors.grey),
-    );
+    if (_isSyncing) {
+      return const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    if (_lastSyncSuccess == true) {
+      return const Icon(Icons.check_circle, color: Colors.green, size: 20);
+    }
+    if (_lastSyncSuccess == false) {
+      return const Icon(Icons.error_outline, color: Colors.orange, size: 20);
+    }
+    return const Icon(Icons.cloud_upload_outlined, size: 20, color: Colors.grey);
   }
 
-  void _showSyncDialog(BuildContext context) {
+  Future<void> _showSyncDialog(BuildContext context) async {
+    final settings = AppSettings();
+    await settings.init();
+
+    final ipController = TextEditingController(text: settings.piAddress);
+    final portController = TextEditingController(text: settings.piPort.toString());
+
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Sync with Pi'),
-        content: const Text(
-          'To sync with your Raspberry Pi:\n\n'
-          '1. Make sure both devices are on the same WiFi\n'
-          '2. Enter your Pi\'s IP address and port\n'
-          '3. Tap "Sync Now"\n\n'
-          'Sync will upload your data to ~/foxory-sync/ on the Pi.',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Back up this phone's travel data to the Pi. Keep both devices on the same Wi-Fi.",
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ipController,
+                decoration: const InputDecoration(
+                  labelText: 'Pi IP address',
+                  hintText: '192.168.1.21',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: portController,
+                decoration: const InputDecoration(
+                  labelText: 'Sync port',
+                  hintText: '9101',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                settings.lastSyncAt.isEmpty
+                    ? 'No successful sync yet.'
+                    : 'Last sync: ${DateFormat('MMM d, h:mm a').format(DateTime.tryParse(settings.lastSyncAt) ?? DateTime.now())}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+              ),
+              if (_lastSyncMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _lastSyncMessage!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: _lastSyncSuccess == true ? Colors.green : Colors.orange,
+                      ),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sync started...')),
-              );
+          ElevatedButton.icon(
+            icon: const Icon(Icons.cloud_upload_outlined),
+            label: const Text('Sync Now'),
+            onPressed: () async {
+              final port = int.tryParse(portController.text.trim()) ?? 9101;
+              await settings.setPiAddress(ipController.text);
+              await settings.setPiPort(port);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              await _runSync(settings);
             },
-            child: const Text('Sync Now'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _runSync(AppSettings settings) async {
+    setState(() {
+      _isSyncing = true;
+      _lastSyncMessage = 'Syncing to Pi...';
+      _lastSyncSuccess = null;
+    });
+
+    final result = await LocalPiSyncService(
+      settings: settings,
+      dbHelper: DatabaseHelper(),
+    ).uploadAll();
+
+    if (!mounted) return;
+    setState(() {
+      _isSyncing = false;
+      _lastSyncSuccess = result.success;
+      _lastSyncMessage = result.message;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.success ? Colors.green : Colors.orange,
       ),
     );
   }

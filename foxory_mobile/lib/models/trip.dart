@@ -94,7 +94,7 @@ class Trip {
         'travelers': travelers,
         'base_currency': baseCurrency,
         'base_rate': baseRate,
-        'transport': transport,
+        'transport_type': transport,
         'status': status,
         'readiness': readiness,
         'distance': distance,
@@ -129,7 +129,7 @@ class Trip {
         travelers: map['travelers'] as int? ?? 1,
         baseCurrency: map['base_currency'] as String? ?? 'USD',
         baseRate: map['base_rate'] as double?,
-        transport: map['transport'] as String? ?? 'flight',
+        transport: map['transport_type'] as String? ?? map['transport'] as String? ?? 'flight',
         status: map['status'] as String? ?? 'IDEA',
         readiness: map['readiness'] as int? ?? 0,
         distance: map['distance'] as double?,
@@ -138,8 +138,7 @@ class Trip {
         travelTimeSource: map['travel_time_source'] as String?,
         totalBudget: map['total_budget'] as double? ?? 0,
         distanceKm: map['distance_km'] as double?,
-        destinationImage:
-            map['destination_image'] as String? ?? null,
+        destinationImage: map['destination_image'] as String?,
         transportLabel: map['transport_label'] as String? ?? 'Flight',
         personalInfo: map['personal_info'] != null
             ? PersonalInfo.fromMap(map['personal_info'] as Map<String, dynamic>)
