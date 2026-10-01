@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:sqflite/sqflite.dart';
 import '../models/models.dart';
 import '../core/database_helper.dart';
+import 'hotel_booking_form.dart';
 
 class PlannerScreen extends StatefulWidget {
   const PlannerScreen({super.key});
@@ -25,8 +27,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Future<void> _loadTrips() async {
     final db = await DatabaseHelper().database;
     final trips = await db.query('trips', where: 'status != ?', whereArgs: ['COMPLETED'], orderBy: 'departure ASC');
+    final loadedTrips = trips.map((m) => Trip.fromMap(m)).toList();
     setState(() {
-      _tripsWithPlanner = trips.map((m) => Trip.fromMap(m)).toList();
+      _tripsWithPlanner = loadedTrips;
+      _selectedTripId ??= loadedTrips.isNotEmpty ? loadedTrips.first.id : null;
       _isLoading = false;
     });
   }
@@ -303,50 +307,330 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   void _showAddToPlannerDialog(BuildContext context) {
+    final trip = _selectedTrip;
+    if (trip == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a trip first')),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (c) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom, top: 16, left: 16, right: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      builder: (c) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.62,
+        minChildSize: 0.40,
+        maxChildSize: 0.90,
+        builder: (sheetContext, controller) => ListView(
+          controller: controller,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+            top: 16,
+            left: 16,
+            right: 16,
+          ),
           children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
             Text('Add to Planner', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text('What do you want to add?', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey.shade500)),
+            Text('Adding to ${trip.name}', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey.shade500)),
             const SizedBox(height: 16),
-            _addOption(Icons.hotel, 'Hotel', 'Add a hotel stay'),
-            _addOption(Icons.flight, 'Flight', 'Add flight details'),
-            _addOption(Icons.calendar_today, 'Itinerary Day', 'Add a day plan'),
-            _addOption(Icons.inventory_2, 'Packing Item', 'Add to packing list'),
-            _addOption(Icons.restaurant, 'Activity', 'Add an activity'),
+            _addOption(Icons.hotel, 'Hotel', 'Add a hotel stay', () => _openHotelForm(trip.id!)),
+            _addOption(Icons.flight, 'Flight', 'Add flight details', () => _showFlightForm(trip)),
+            _addOption(Icons.calendar_today, 'Itinerary Day', 'Add a day plan', () => _showItineraryDayForm(trip)),
+            _addOption(Icons.inventory_2, 'Packing Item', 'Add to packing list', () => _showPackingItemForm(trip)),
+            _addOption(Icons.restaurant, 'Activity', 'Add a planned activity', () => _showActivityForm(trip)),
             const SizedBox(height: 16),
             SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel'))),
-            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _addOption(IconData icon, String label, String subtitle) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
+
+  Widget _addOption(IconData icon, String label, String subtitle, VoidCallback onTap) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
+        ),
+        title: Text(label),
+        subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+        trailing: const Icon(Icons.add_circle_outline),
+        onTap: () {
+          Navigator.pop(context);
+          onTap();
+        },
       ),
-      title: Text(label),
-      subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-      trailing: const Icon(Icons.add_circle_outline),
-      onTap: () {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-      },
     );
   }
+  void _openHotelForm(int tripId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => HotelBookingForm(preselectedTripId: tripId)),
+    ).then((_) => _loadTrips());
+  }
+
+  Future<void> _showFlightForm(Trip trip) async {
+    final airlineCtrl = TextEditingController();
+    final flightNoCtrl = TextEditingController();
+    final fromCtrl = TextEditingController(text: trip.originName == 'Unknown' ? '' : trip.originName);
+    final toCtrl = TextEditingController(text: trip.destName == 'Unknown' ? '' : trip.destName);
+    DateTime departure = trip.departure;
+    DateTime arrival = trip.departure;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 16, left: 16, right: 16, top: 16),
+        child: StatefulBuilder(
+          builder: (ctx, setSheetState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Add Flight', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                TextField(controller: airlineCtrl, decoration: const InputDecoration(labelText: 'Airline', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(controller: flightNoCtrl, decoration: const InputDecoration(labelText: 'Flight number', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(child: TextField(controller: fromCtrl, decoration: const InputDecoration(labelText: 'From city', border: OutlineInputBorder()))),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: toCtrl, decoration: const InputDecoration(labelText: 'To city', border: OutlineInputBorder()))),
+                ]),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_today),
+                  title: Text('Departure: ${DateFormat('MMM d, y').format(departure)}'),
+                  onTap: () async {
+                    final d = await showDatePicker(context: ctx, initialDate: departure, firstDate: DateTime.now().subtract(const Duration(days: 365)), lastDate: DateTime.now().add(const Duration(days: 1095)));
+                    if (d != null) setSheetState(() { departure = d; arrival = d; });
+                  },
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final now = DateTime.now().toIso8601String();
+                      await DatabaseHelper().insert('flights', {
+                        'trip_id': trip.id,
+                        'airline': airlineCtrl.text.trim().isEmpty ? 'Flight' : airlineCtrl.text.trim(),
+                        'flight_number': flightNoCtrl.text.trim().isEmpty ? 'TBD' : flightNoCtrl.text.trim(),
+                        'from_city': fromCtrl.text.trim().isEmpty ? trip.originName : fromCtrl.text.trim(),
+                        'from_country': trip.originCountry,
+                        'to_city': toCtrl.text.trim().isEmpty ? trip.destName : toCtrl.text.trim(),
+                        'to_country': trip.destCountry,
+                        'departure': departure.toIso8601String(),
+                        'arrival': arrival.toIso8601String(),
+                        'departure_terminal': '',
+                        'arrival_terminal': '',
+                        'departure_gate': '',
+                        'arrival_gate': '',
+                        'currency': trip.baseCurrency,
+                        'seat': '',
+                        'status': 'CONFIRMED',
+                        'notes': '',
+                        'bookmarked': 0,
+                        'duration_minutes': 0,
+                        'created_at': now,
+                        'updated_at': now,
+                        'sync_enabled': 1,
+                        'sync_status': 0,
+                      });
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      await _loadTrips();
+                    },
+                    child: const Text('Save Flight'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showItineraryDayForm(Trip trip) async {
+    final themeCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    DateTime date = trip.departure;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 16, left: 16, right: 16, top: 16),
+        child: StatefulBuilder(
+          builder: (ctx, setSheetState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Add Itinerary Day', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              TextField(controller: themeCtrl, decoration: const InputDecoration(labelText: 'Theme / title', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: notesCtrl, decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()), maxLines: 2),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.calendar_today),
+                title: Text(DateFormat('MMM d, y').format(date)),
+                onTap: () async {
+                  final d = await showDatePicker(context: ctx, initialDate: date, firstDate: trip.departure.subtract(const Duration(days: 30)), lastDate: trip.returnDate.add(const Duration(days: 30)));
+                  if (d != null) setSheetState(() => date = d);
+                },
+              ),
+              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () async {
+                final db = await DatabaseHelper().database;
+                final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM itinerary_days WHERE trip_id = ?', [trip.id])) ?? 0;
+                final now = DateTime.now().toIso8601String();
+                await DatabaseHelper().insert('itinerary_days', {
+                  'trip_id': trip.id,
+                  'day_number': count + 1,
+                  'date': date.toIso8601String(),
+                  'theme': themeCtrl.text.trim(),
+                  'notes': notesCtrl.text.trim(),
+                  'order_index': count,
+                  'created_at': now,
+                  'updated_at': now,
+                  'sync_enabled': 1,
+                  'sync_status': 0,
+                });
+                if (ctx.mounted) Navigator.pop(ctx);
+                await _loadTrips();
+              }, child: const Text('Save Day'))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showPackingItemForm(Trip trip) async {
+    final nameCtrl = TextEditingController();
+    final categoryCtrl = TextEditingController(text: 'Clothes');
+    final qtyCtrl = TextEditingController(text: '1');
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 16, left: 16, right: 16, top: 16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Add Packing Item', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Item name', border: OutlineInputBorder()), autofocus: true),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: TextField(controller: categoryCtrl, decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()))),
+            const SizedBox(width: 8),
+            Expanded(child: TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: 'Quantity', border: OutlineInputBorder()), keyboardType: TextInputType.number)),
+          ]),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () async {
+            if (nameCtrl.text.trim().isEmpty) return;
+            final now = DateTime.now().toIso8601String();
+            await DatabaseHelper().insert('packing_items', {
+              'trip_id': trip.id,
+              'category': categoryCtrl.text.trim().isEmpty ? 'Misc' : categoryCtrl.text.trim(),
+              'name': nameCtrl.text.trim(),
+              'quantity': int.tryParse(qtyCtrl.text.trim()) ?? 1,
+              'unit': '',
+              'packed': 0,
+              'essential': 0,
+              'notes': '',
+              'packed_at_minutes': 0,
+              'packed_now': 0,
+              'created_at': now,
+              'updated_at': now,
+              'sync_status': 0,
+              'sync_enabled': 1,
+            });
+            if (ctx.mounted) Navigator.pop(ctx);
+            await _loadTrips();
+          }, child: const Text('Save Item'))),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _showActivityForm(Trip trip) async {
+    final titleCtrl = TextEditingController();
+    final locationCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    DateTime date = trip.departure;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 16, left: 16, right: 16, top: 16),
+        child: StatefulBuilder(
+          builder: (ctx, setSheetState) => SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('Add Activity', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Activity title', border: OutlineInputBorder()), autofocus: true),
+              const SizedBox(height: 12),
+              TextField(controller: locationCtrl, decoration: const InputDecoration(labelText: 'Location', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: notesCtrl, decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()), maxLines: 2),
+              ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.calendar_today), title: Text(DateFormat('MMM d, y').format(date)), onTap: () async {
+                final d = await showDatePicker(context: ctx, initialDate: date, firstDate: trip.departure.subtract(const Duration(days: 30)), lastDate: trip.returnDate.add(const Duration(days: 30)));
+                if (d != null) setSheetState(() => date = d);
+              }),
+              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () async {
+                if (titleCtrl.text.trim().isEmpty) return;
+                final db = await DatabaseHelper().database;
+                final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM itinerary_activities WHERE trip_id = ?', [trip.id])) ?? 0;
+                final dayNumber = date.difference(trip.departure).inDays + 1;
+                final now = DateTime.now().toIso8601String();
+                await DatabaseHelper().insert('itinerary_activities', {
+                  'trip_id': trip.id,
+                  'day_number': dayNumber < 1 ? 1 : dayNumber,
+                  'order_index': count,
+                  'title': titleCtrl.text.trim(),
+                  'description': notesCtrl.text.trim(),
+                  'start_time': date.toIso8601String(),
+                  'end_time': date.toIso8601String(),
+                  'category': 'activity',
+                  'location': locationCtrl.text.trim(),
+                  'currency': trip.baseCurrency,
+                  'duration_minutes': 0,
+                  'done': 0,
+                  'important': 0,
+                  'reminder_minutes': 0,
+                  'created_at': now,
+                  'updated_at': now,
+                  'sync_enabled': 1,
+                  'sync_status': 0,
+                });
+                if (ctx.mounted) Navigator.pop(ctx);
+                await _loadTrips();
+              }, child: const Text('Save Activity'))),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
 class TimelineEvent {

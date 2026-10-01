@@ -447,16 +447,19 @@ class _MoreScreenState extends State<MoreScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 16,
-          left: 16,
-          right: 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.72,
+        minChildSize: 0.40,
+        maxChildSize: 0.92,
+        builder: (sheetContext, controller) => ListView(
+          controller: controller,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+            top: 16,
+            left: 16,
+            right: 16,
+          ),
           children: [
             Text(
               'Quick Add',
@@ -488,7 +491,6 @@ class _MoreScreenState extends State<MoreScreen> {
                 child: const Text('Cancel'),
               ),
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),
