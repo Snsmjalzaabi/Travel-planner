@@ -35,10 +35,26 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     await _refreshConvertedAmounts();
   }
 
-  void _add() {
-    final titleCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    String currency = 'AED';
+  static const _expenseCategories = [
+    'transportation',
+    'food',
+    'accommodation',
+    'activities',
+    'shopping',
+    'groceries',
+    'other',
+  ];
+
+  void _add() => _showExpenseForm();
+
+  void _showExpenseForm({Expense? expense}) {
+    final titleCtrl = TextEditingController(text: expense?.title ?? '');
+    final amountCtrl = TextEditingController(
+      text: expense == null ? '' : expense.amount.toStringAsFixed(2),
+    );
+    final otherCommentCtrl = TextEditingController(text: expense?.notes ?? '');
+    String currency = expense?.currency ?? 'AED';
+    String category = _normalizeCategory(expense?.category ?? 'transportation');
     final db = DatabaseHelper();
     final currencyService = CurrencyService();
 
@@ -50,85 +66,149 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, top: 16, left: 16, right: 16),
         child: StatefulBuilder(
-          builder: (context, setModalState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(top: 8),
-                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-              ),
-              Text('Add Expense', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
-                autofocus: true,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: amountCtrl,
-                      decoration: const InputDecoration(labelText: 'Amount'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    ),
+          builder: (context, setModalState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                ),
+                Text(
+                  expense == null ? 'Add Expense' : 'Edit Expense',
+                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+                  autofocus: expense == null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: category,
+                  decoration: const InputDecoration(
+                    labelText: 'Expense Type',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: currency,
-                      decoration: const InputDecoration(labelText: 'Currency'),
-                      items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                      onChanged: (v) => v != null ? setModalState(() => currency = v) : null,
+                  items: _expenseCategories
+                      .map((c) => DropdownMenuItem(value: c, child: Text(_categoryLabel(c))))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setModalState(() => category = v);
+                  },
+                ),
+                if (category == 'other') ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: otherCommentCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Comment for Other',
+                      hintText: 'Example: visa fee, gift, emergency item...',
+                      border: OutlineInputBorder(),
                     ),
+                    maxLines: 2,
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    if (!mounted) return;
-                    final title = titleCtrl.text.trim();
-                    final amountStr = amountCtrl.text.trim();
-                    if (title.isEmpty || amountStr.isEmpty) return;
-
-                    final amount = double.tryParse(amountStr);
-                    if (amount == null || amount <= 0) return;
-
-                    final baseAmount = await currencyService.convert(amount, currency, 'USD');
-
-                    final now = DateTime.now().toIso8601String();
-                    final row = {
-                      'title': title,
-                      'category': 'other',
-                      'amount': amount,
-                      'currency': currency,
-                      'base_amount': baseAmount,
-                      'date': now,
-                      'created_at': now,
-                      'updated_at': now,
-                      'sync_enabled': 1,
-                    };
-                    await db.insert('expenses', row);
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    _load();
-                  },
-                  child: const Text('Save'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: amountCtrl,
+                        decoration: const InputDecoration(labelText: 'Amount', border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: currency,
+                        decoration: const InputDecoration(labelText: 'Currency', border: OutlineInputBorder()),
+                        items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR']
+                            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                            .toList(),
+                        onChanged: (v) => v != null ? setModalState(() => currency = v) : null,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-            ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (!mounted) return;
+                      final title = titleCtrl.text.trim();
+                      final amountStr = amountCtrl.text.trim().replaceAll(',', '');
+                      final otherComment = otherCommentCtrl.text.trim();
+                      if (title.isEmpty || amountStr.isEmpty) return;
+                      if (category == 'other' && otherComment.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Add a comment when using Other')),
+                        );
+                        return;
+                      }
+
+                      final amount = double.tryParse(amountStr);
+                      if (amount == null || amount <= 0) return;
+
+                      final baseAmount = await currencyService.convert(amount, currency, 'USD');
+                      final now = DateTime.now().toIso8601String();
+                      final row = {
+                        'title': title,
+                        'category': category,
+                        'amount': amount,
+                        'currency': currency,
+                        'base_amount': baseAmount,
+                        'date': expense?.date.toIso8601String() ?? now,
+                        'notes': category == 'other' ? otherComment : null,
+                        'created_at': expense?.createdAt.toIso8601String() ?? now,
+                        'updated_at': now,
+                        'sync_enabled': 1,
+                      };
+
+                      if (expense?.id == null) {
+                        await db.insert('expenses', row);
+                      } else {
+                        await db.update('expenses', row, where: 'id = ?', whereArgs: [expense!.id]);
+                      }
+
+                      if (!mounted) return;
+                      Navigator.pop(ctx);
+                      await _load();
+                    },
+                    child: Text(expense == null ? 'Save' : 'Update'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  Future<void> _deleteExpense(Expense expense) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete expense?'),
+        content: Text('Delete "${expense.title}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true || expense.id == null) return;
+    await DatabaseHelper().delete('expenses', where: 'id = ?', whereArgs: [expense.id]);
+    await _load();
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -206,27 +286,46 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          expense.merchant ?? expense.category,
+          expense.category == 'other' && (expense.notes?.isNotEmpty ?? false)
+              ? '${_categoryLabel(expense.category)} • ${expense.notes}'
+              : _categoryLabel(expense.category),
           style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Column(
+        trailing: Row(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              _formatDisplayedAmount(expense),
-              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: colorScheme.primary),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _formatDisplayedAmount(expense),
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: colorScheme.primary),
+                ),
+                if (expense.currency != _displayCurrency)
+                  Text(
+                    '${NumberFormat.currency(symbol: _currencySymbol(expense.currency)).format(expense.amount)} original',
+                    style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade500),
+                  ),
+              ],
             ),
-            if (expense.currency != _displayCurrency)
-              Text(
-                '${NumberFormat.currency(symbol: _currencySymbol(expense.currency)).format(expense.amount)} original',
-                style: GoogleFonts.inter(fontSize: 10, color: Colors.grey.shade500),
-              ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 20),
+              onSelected: (value) {
+                if (value == 'edit') _showExpenseForm(expense: expense);
+                if (value == 'delete') _deleteExpense(expense);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(value: 'delete', child: Text('Delete')),
+              ],
+            ),
           ],
         ),
-        onTap: () {},
+        onTap: () => _showExpenseForm(expense: expense),
+        onLongPress: () => _deleteExpense(expense),
       ),
     );
   }
@@ -351,13 +450,43 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     return const SizedBox();
   }
 
+  static String _categoryLabel(String category) {
+    switch (category) {
+      case 'transportation':
+        return 'Transportation';
+      case 'food':
+        return 'Food';
+      case 'accommodation':
+        return 'Accommodation';
+      case 'activities':
+        return 'Activities';
+      case 'shopping':
+        return 'Shopping';
+      case 'groceries':
+        return 'Groceries';
+      case 'other':
+        return 'Other';
+      default:
+        return category.isEmpty ? 'Other' : category;
+    }
+  }
+
+  String _normalizeCategory(String category) {
+    final c = category.toLowerCase().trim();
+    if (c == 'transport') return 'transportation';
+    if (_expenseCategories.contains(c)) return c;
+    return 'other';
+  }
+
   Color _categoryColor(String cat) {
     switch (cat.toLowerCase()) {
       case 'food': return Colors.orange;
-      case 'transport': return Colors.blue;
+      case 'transport':
+      case 'transportation': return Colors.blue;
       case 'accommodation': return Colors.purple;
       case 'activities': return Colors.green;
       case 'shopping': return Colors.pink;
+      case 'groceries': return Colors.teal;
       default: return Colors.grey;
     }
   }
@@ -365,10 +494,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   IconData _categoryIcon(String cat) {
     switch (cat.toLowerCase()) {
       case 'food': return Icons.restaurant;
-      case 'transport': return Icons.directions_car;
+      case 'transport':
+      case 'transportation': return Icons.directions_car;
       case 'accommodation': return Icons.hotel;
       case 'activities': return Icons.event;
       case 'shopping': return Icons.shopping_bag;
+      case 'groceries': return Icons.local_grocery_store;
       default: return Icons.receipt;
     }
   }
@@ -451,10 +582,12 @@ class _PieChartPainter extends CustomPainter {
   Color _categoryColor(String cat) {
     switch (cat.toLowerCase()) {
       case 'food': return Colors.orange;
-      case 'transport': return Colors.blue;
+      case 'transport':
+      case 'transportation': return Colors.blue;
       case 'accommodation': return Colors.purple;
       case 'activities': return Colors.green;
       case 'shopping': return Colors.pink;
+      case 'groceries': return Colors.teal;
       default: return Colors.grey;
     }
   }
