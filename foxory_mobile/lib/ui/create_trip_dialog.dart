@@ -6,7 +6,13 @@ import '../models/models.dart';
 
 class CreateTripDialog extends StatefulWidget {
   final Future<void> Function(Trip) onTripCreated;
-  const CreateTripDialog({super.key, required this.onTripCreated});
+  final Trip? initialTrip;
+
+  const CreateTripDialog({
+    super.key,
+    required this.onTripCreated,
+    this.initialTrip,
+  });
 
   @override
   State<CreateTripDialog> createState() => _CreateTripDialogState();
@@ -50,6 +56,29 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
     'LK','SD','SR','SE','CH','SY','TW','TJ','TZ','TH','TL','TG','TO','TT','TN','TR','TM','TV','UG','UA',
     'AE','GB','US','UY','UZ','VU','VE','VN','YE','ZM','ZW',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final trip = widget.initialTrip;
+    if (trip == null) return;
+
+    _nameCtrl.text = trip.name;
+    _originCtrl.text = trip.originName == 'Unknown' ? '' : trip.originName;
+    _destCtrl.text = trip.destName == 'Unknown' ? '' : trip.destName;
+    _originCountryCtrl.text = trip.originCountry == 'Unknown' ? '' : trip.originCountry;
+    _destCountryCtrl.text = trip.destCountry == 'Unknown' ? '' : trip.destCountry;
+    _destLatLngCtrl.text = trip.destinationImage ?? '';
+    _departure = trip.departure;
+    _returnDate = trip.returnDate;
+    _travelers = trip.travelers;
+    _transport = trip.transport;
+    _status = trip.status.toLowerCase();
+    _baseCurrency = trip.baseCurrency.toUpperCase();
+    _currencyCtrl.text = _baseCurrency;
+    _totalBudget = trip.totalBudget;
+    _destinationImage = trip.destinationImage;
+  }
 
   @override
   void dispose() {
@@ -97,7 +126,10 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text('New Trip', style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600)),
+                      child: Text(
+                        widget.initialTrip == null ? 'New Trip' : 'Edit Trip',
+                        style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w600),
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close),
@@ -564,7 +596,10 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text('Save Trip', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    widget.initialTrip == null ? 'Save Trip' : 'Update Trip',
+                    style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -693,7 +728,9 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
       name: name,
       originName: origin.isEmpty ? 'Unknown' : origin,
       destName: dest.isEmpty ? 'Unknown' : dest,
-      destinationImage: _destinationImage ?? _buildFallbackImage(),
+      destinationImage: _destLatLngCtrl.text.trim().isNotEmpty
+          ? _destLatLngCtrl.text.trim()
+          : (_destinationImage ?? _buildFallbackImage()),
       originCountry: originCountry.isEmpty ? 'Unknown' : originCountry,
       destCountry: destCountry.isEmpty ? 'Unknown' : destCountry,
       departure: _departure,
@@ -718,7 +755,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Trip Created'),
+        title: Text(widget.initialTrip == null ? 'Trip Created' : 'Trip Updated'),
         content: Text('"${trip.name}" has been saved.'),
         actions: [
           TextButton(

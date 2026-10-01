@@ -545,6 +545,7 @@ class _TripsScreenState extends State<TripsScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (c) => CreateTripDialog(
+        initialTrip: trip,
         onTripCreated: (updated) async {
           final data = updated.toMap()..remove('id');
           data['updated_at'] = DateTime.now().toIso8601String();
