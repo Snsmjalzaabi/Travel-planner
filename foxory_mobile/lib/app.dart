@@ -97,12 +97,12 @@ class MainShell extends StatelessWidget {
         children: [
           IndexedStack(
             index: currentIndex,
-            children: const [
-              HomeScreen(),
-              TripsScreen(),
-              PlannerScreen(),
-              ExpensesScreen(),
-              MoreScreen(),
+            children: [
+              const HomeScreen(),
+              const TripsScreen(),
+              PlannerScreen(isActive: currentIndex == 2),
+              const ExpensesScreen(),
+              const MoreScreen(),
             ],
           ),
         ],

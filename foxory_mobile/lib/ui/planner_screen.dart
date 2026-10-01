@@ -7,7 +7,9 @@ import '../core/database_helper.dart';
 import 'hotel_booking_form.dart';
 
 class PlannerScreen extends StatefulWidget {
-  const PlannerScreen({super.key});
+  final bool isActive;
+
+  const PlannerScreen({super.key, this.isActive = false});
 
   @override
   State<PlannerScreen> createState() => _PlannerScreenState();
@@ -24,9 +26,19 @@ class _PlannerScreenState extends State<PlannerScreen> {
     _loadTrips();
   }
 
+  @override
+  void didUpdateWidget(covariant PlannerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      _loadTrips();
+    }
+  }
+
   Future<void> _loadTrips() async {
     final db = await DatabaseHelper().database;
-    final trips = await db.query('trips', where: 'status != ?', whereArgs: ['COMPLETED'], orderBy: 'departure ASC');
+    // Show all saved trips. Status casing changed over time (planning/PLANNING),
+    // so filtering here hid valid trips from the Planner tab.
+    final trips = await db.query('trips', orderBy: 'departure ASC');
     final loadedTrips = trips.map((m) => Trip.fromMap(m)).toList();
     setState(() {
       _tripsWithPlanner = loadedTrips;

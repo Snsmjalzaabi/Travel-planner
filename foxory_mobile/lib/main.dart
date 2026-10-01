@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 
 import 'app.dart';
 import 'core/database_helper.dart';
@@ -13,13 +11,7 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
 
-  // Ensure sample data is seeded on first launch
-  final db = await openDatabase(
-    join(await getDatabasesPath(), 'foxory.db'),
-    version: 1,
-  );
-  await db.close();
-
+  // DatabaseHelper owns the connection and creates the schema on first open.
   final dbHelper = DatabaseHelper();
   final alerts = AlertService(dbHelper);
 

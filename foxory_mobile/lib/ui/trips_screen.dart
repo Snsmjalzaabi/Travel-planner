@@ -25,9 +25,8 @@ class _TripsScreenState extends State<TripsScreen> {
 
   Future<void> _loadTrips() async {
     final db = await DatabaseHelper().database;
-    final where = _filterStatus == 'all' ? null : 'status = ?';
-    final whereArgs = _filterStatus == 'all' ? null : [_filterStatus];
-    final trips = await db.query('trips', where: where, whereArgs: whereArgs, orderBy: 'departure ASC');
+    final rows = await db.query('trips', orderBy: 'departure ASC');
+    final trips = rows.where((r) => _matchesStatus((r['status'] as String?) ?? '')).toList();
     // Pre-fetch hotel counts per trip
     final hotelsByTrip = <int, int>{};
     for (final t in trips) {
@@ -46,6 +45,28 @@ class _TripsScreenState extends State<TripsScreen> {
   Map<int, int> _hotelsByTrip = {};
 
 
+  /// Trip statuses, stored lowercase by the create/edit form.
+  static const _statusFilters = [
+    (value: 'IDEA', label: 'Ideas'),
+    (value: 'PLANNING', label: 'Planning'),
+    (value: 'READY', label: 'Ready'),
+    (value: 'ACTIVE', label: 'Active'),
+    (value: 'COMPLETED', label: 'Completed'),
+  ];
+
+  String _statusLabel(String status) {
+    final upper = status.toUpperCase();
+    for (final f in _statusFilters) {
+      if (f.value == upper) return f.label;
+    }
+    return status.isEmpty ? 'Unknown' : status;
+  }
+
+  bool _matchesStatus(String status) {
+    if (_filterStatus == 'all') return true;
+    return status.toUpperCase() == _filterStatus.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -60,11 +81,8 @@ class _TripsScreenState extends State<TripsScreen> {
             },
             itemBuilder: (c) => [
               const PopupMenuItem(value: 'all', child: Text('All trips')),
-              const PopupMenuItem(value: 'IDEA', child: Text('Ideas')),
-              const PopupMenuItem(value: 'PLANNING', child: Text('Planning')),
-              const PopupMenuItem(value: 'READY', child: Text('Ready')),
-              const PopupMenuItem(value: 'ACTIVE', child: Text('Active')),
-              const PopupMenuItem(value: 'COMPLETED', child: Text('Completed')),
+              for (final s in _statusFilters)
+                PopupMenuItem(value: s.value, child: Text(s.label)),
             ],
           ),
         ],
@@ -275,14 +293,14 @@ class _TripsScreenState extends State<TripsScreen> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        status,
+        _statusLabel(status),
         style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w500),
       ),
     );
   }
 
   Color _statusColor(String status) {
-    switch (status) {
+    switch (status.toUpperCase()) {
       case 'IDEA': return Colors.grey;
       case 'PLANNING': return Colors.blue;
       case 'READY': return Colors.orange;
