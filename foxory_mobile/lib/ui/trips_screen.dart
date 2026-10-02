@@ -25,18 +25,14 @@ class _TripsScreenState extends State<TripsScreen> {
   }
 
   Future<void> _loadTrips() async {
-    final db = await DatabaseHelper().database;
-    final rows = await db.query('trips', orderBy: 'departure ASC');
-    final trips = rows.where((r) => _matchesStatus((r['status'] as String?) ?? '')).toList();
-    // Pre-fetch hotel counts per trip
-    final hotelsByTrip = <int, int>{};
-    for (final t in trips) {
-      final tid = t['id'] as int;
-      final h = await db.rawQuery('SELECT COUNT(*) as c FROM hotels WHERE trip_id = ?', [tid]);
-      hotelsByTrip[tid] = (h.first['c'] as int?) ?? 0;
-    }
+    final all = await DatabaseHelper().loadTripsWithRelations();
+    final trips = all.where((t) => _matchesStatus(t.status)).toList();
+    final hotelsByTrip = <int, int>{
+      for (final t in trips)
+        if (t.id != null) t.id!: t.hotels.length,
+    };
     setState(() {
-      _trips = trips.map((m) => Trip.fromMap(m)).toList();
+      _trips = trips;
       _hotelsByTrip = hotelsByTrip;
       _isLoading = false;
     });

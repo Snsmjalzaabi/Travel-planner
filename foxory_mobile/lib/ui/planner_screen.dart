@@ -35,11 +35,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
   }
 
   Future<void> _loadTrips() async {
-    final db = await DatabaseHelper().database;
-    // Show all saved trips. Status casing changed over time (planning/PLANNING),
-    // so filtering here hid valid trips from the Planner tab.
-    final trips = await db.query('trips', orderBy: 'departure ASC');
-    final loadedTrips = trips.map((m) => Trip.fromMap(m)).toList();
+    // Load all saved trips (status casing varies historically, so no filter)
+    // and attach hotels/flights/itinerary/packing so counts are real.
+    final loadedTrips = await DatabaseHelper().loadTripsWithRelations();
     setState(() {
       _tripsWithPlanner = loadedTrips;
       _selectedTripId ??= loadedTrips.isNotEmpty ? loadedTrips.first.id : null;
@@ -121,10 +119,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
       ),
       child: Row(
         children: [
-          _plannerTab('Hotels', Icons.hotel, (_selectedTrip?.hotels?.isNotEmpty ?? false), colorScheme),
-          _plannerTab('Flights', Icons.flight, (_selectedTrip?.flights?.isNotEmpty ?? false), colorScheme),
-          _plannerTab('Itinerary', Icons.calendar_today, (_selectedTrip?.itineraryDays?.isNotEmpty ?? false), colorScheme),
-          _plannerTab('Packing', Icons.inventory_2, (_selectedTrip?.packingItems?.isNotEmpty ?? false), colorScheme),
+          _plannerTab('Hotels', Icons.hotel, _selectedTrip!.hotels.isNotEmpty, colorScheme),
+          _plannerTab('Flights', Icons.flight, _selectedTrip!.flights.isNotEmpty, colorScheme),
+          _plannerTab('Itinerary', Icons.calendar_today, _selectedTrip!.itineraryDays.isNotEmpty, colorScheme),
+          _plannerTab('Packing', Icons.inventory_2, _selectedTrip!.packingItems.isNotEmpty, colorScheme),
           const Spacer(),
           _plannerTab('Map', Icons.map, true, colorScheme),
         ],
@@ -180,10 +178,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
   int _getTabCount(String label) {
     if (_selectedTrip == null) return 0;
     switch (label) {
-      case 'Hotels': return _selectedTrip!.tripHotels?.length ?? 0;
-      case 'Flights': return _selectedTrip!.tripFlights?.length ?? 0;
-      case 'Itinerary': return _selectedTrip!.itineraryDays?.length ?? 0;
-      case 'Packing': return _selectedTrip!.packingItems?.length ?? 0;
+      case 'Hotels': return _selectedTrip!.tripHotels.length;
+      case 'Flights': return _selectedTrip!.tripFlights.length;
+      case 'Itinerary': return _selectedTrip!.itineraryDays.length;
+      case 'Packing': return _selectedTrip!.packingItems.length;
       default: return 0;
     }
   }
@@ -260,14 +258,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _plannerChip(Icons.hotel, 'Hotels', t.tripHotels?.length ?? 0, Colors.indigo),
-              _plannerChip(Icons.flight, 'Flights', t.tripFlights?.length ?? 0, Colors.purple),
-              _plannerChip(Icons.calendar_today, 'Itinerary', t.itineraryDays?.length ?? 0, Colors.teal),
-              _plannerChip(Icons.inventory_2, 'Packing', t.packingItems?.length ?? 0, Colors.amber),
+              _plannerChip(Icons.hotel, 'Hotels', t.tripHotels.length, Colors.indigo),
+              _plannerChip(Icons.flight, 'Flights', t.tripFlights.length, Colors.purple),
+              _plannerChip(Icons.calendar_today, 'Itinerary', t.itineraryDays.length, Colors.teal),
+              _plannerChip(Icons.inventory_2, 'Packing', t.packingItems.length, Colors.amber),
             ],
           ),
           const SizedBox(height: 16),
-          if ((t.tripHotels ?? []).isNotEmpty || (t.tripFlights ?? []).isNotEmpty) _buildTimelineSection(context, colorScheme),
+          if (t.tripHotels.isNotEmpty || t.tripFlights.isNotEmpty) _buildTimelineSection(context, colorScheme),
         ],
       ),
     );
@@ -299,10 +297,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Widget _buildTimelineSection(BuildContext context, ColorScheme colorScheme) {
     final allEvents = <TimelineEvent>[];
-    for (final flight in (_selectedTrip!.tripFlights ?? [])) {
+    for (final flight in _selectedTrip!.tripFlights) {
       allEvents.add(TimelineEvent(type: 'flight', title: flight.airline, subtitle: '${flight.flightNumber} · ${flight.fromCity} → ${flight.toCity}', time: flight.departure, icon: Icons.flight, color: Colors.purple));
     }
-    for (final hotel in (_selectedTrip!.tripHotels ?? [])) {
+    for (final hotel in _selectedTrip!.tripHotels) {
       allEvents.add(TimelineEvent(type: 'hotel', title: hotel.name, subtitle: '${hotel.checkIn.toLocal().toString().split(' ')[0]} – ${hotel.checkOut.toLocal().toString().split(' ')[0]}', time: hotel.checkIn, icon: Icons.hotel, color: Colors.indigo));
     }
     allEvents.sort((a, b) => a.time.compareTo(b.time));

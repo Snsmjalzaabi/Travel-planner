@@ -166,13 +166,44 @@ class Trip {
 
   int get nights => returnDate.difference(departure).inDays;
 
-  List<Hotel>? get hotels => null;
-  List<Flight>? get flights => null;
-  List<ItineraryDay>? get itineraryDays => null;
-  List<PackingItem>? get packingItems => null;
+  // ---- Loaded relations -------------------------------------------------
+  // These are populated by DatabaseHelper.loadTripRelations() after the trip
+  // is read from SQLite. They default to empty so every count in the UI is
+  // accurate instead of silently reading zero.
+  List<Hotel> _hotels = const [];
+  List<Flight> _flights = const [];
+  List<ItineraryDay> _itineraryDays = const [];
+  List<PackingItem> _packingItems = const [];
 
-  List<Hotel>? get tripHotels => hotels;
-  List<Flight>? get tripFlights => flights;
+  List<Hotel> get hotels => _hotels;
+  List<Flight> get flights => _flights;
+  List<ItineraryDay> get itineraryDays => _itineraryDays;
+  List<PackingItem> get packingItems => _packingItems;
+
+  /// Itinerary activities across all days of this trip.
+  List<ItineraryActivity> activities = const [];
+
+  /// Aliases kept for existing call sites.
+  List<Hotel> get tripHotels => _hotels;
+  List<Flight> get tripFlights => _flights;
+
+  /// Attaches related rows and returns this instance. Called by
+  /// DatabaseHelper.loadTripRelations() right after a trip is read from
+  /// SQLite, so every count in the UI reflects real data.
+  Trip attachRelations({
+    List<Hotel>? hotels,
+    List<Flight>? flights,
+    List<ItineraryDay>? itineraryDays,
+    List<PackingItem>? packingItems,
+    List<ItineraryActivity>? activities,
+  }) {
+    if (hotels != null) _hotels = hotels;
+    if (flights != null) _flights = flights;
+    if (itineraryDays != null) _itineraryDays = itineraryDays;
+    if (packingItems != null) _packingItems = packingItems;
+    if (activities != null) this.activities = activities;
+    return this;
+  }
 
   Trip copyWith({
     int? id,
@@ -246,4 +277,5 @@ class Trip {
       syncStatus: syncStatus ?? this.syncStatus,
     );
   }
+
 }

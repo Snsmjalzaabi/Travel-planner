@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import '../models/models.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -15,9 +16,13 @@ class DatabaseHelper {
     return _database!;
   }
 
+  /// Test-only override so unit tests can use a throwaway DB file.
+  /// Leave null in the app; sqflite picks the platform default path.
+  static String? testOverridePath;
+
   Future<Database> _initDB() async {
-    final docsDir = await getApplicationDocumentsDirectory();
-    final dbPath = join(docsDir.path, 'foxory.db');
+    final dbPath = testOverridePath ??
+        join((await getApplicationDocumentsDirectory()).path, 'foxory.db');
     return openDatabase(
       dbPath,
       version: 2,
@@ -527,9 +532,55 @@ class DatabaseHelper {
     return db.query('hotels', where: 'trip_id = ?', whereArgs: [tripId], orderBy: 'check_in DESC');
   }
 
-  Future<void> close() async {
+  /// Loads a trip with all of its related rows attached (hotels, flights,
+  /// itinerary days + activities, packing items). One place so every screen
+  /// gets accurate counts instead of empty lists.
+  Future<Trip> loadTripRelations(Trip trip) async {
+    final id = trip.id;
+    if (id == null) return trip;
+
     final db = await database;
-    await db.close();
+
+    final hotels = (await db.query('hotels', where: 'trip_id = ?', whereArgs: [id], orderBy: 'check_in ASC'))
+        .map(Hotel.fromMap)
+        .toList();
+
+    final flights = (await db.query('flights', where: 'trip_id = ?', whereArgs: [id], orderBy: 'departure ASC'))
+        .map(Flight.fromMap)
+        .toList();
+
+    final days = (await db.query('itinerary_days', where: 'trip_id = ?', whereArgs: [id], orderBy: 'day_number ASC'))
+        .map(ItineraryDay.fromMap)
+        .toList();
+
+    final activities = (await db.query('itinerary_activities', where: 'trip_id = ?', whereArgs: [id], orderBy: 'start_time ASC'))
+        .map(ItineraryActivity.fromMap)
+        .toList();
+
+    final packing = (await db.query('packing_items', where: 'trip_id = ?', whereArgs: [id], orderBy: 'category ASC, name ASC'))
+        .map(PackingItem.fromMap)
+        .toList();
+
+    return trip.attachRelations(
+      hotels: hotels,
+      flights: flights,
+      itineraryDays: days,
+      packingItems: packing,
+      activities: activities,
+    );
+  }
+
+  /// Loads every trip with relations attached.
+  Future<List<Trip>> loadTripsWithRelations({String? orderBy = 'departure ASC'}) async {
+    final db = await database;
+    final rows = await db.query('trips', orderBy: orderBy);
+    final trips = rows.map(Trip.fromMap).toList();
+    return [for (final trip in trips) await loadTripRelations(trip)];
+  }
+
+  Future<void> close() async {
+    final db = _database;
     _database = null;
+    if (db != null) await db.close();
   }
 }
