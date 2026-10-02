@@ -7,6 +7,7 @@ import '../ui/hotel_booking_form.dart';
 import '../core/app_settings.dart';
 import '../services/local_pi_sync_service.dart';
 import 'recommendations_screen.dart';
+import 'documents_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -18,7 +19,6 @@ class MoreScreen extends StatefulWidget {
 class _MoreScreenState extends State<MoreScreen> {
   List<Note> _notes = [];
   List<Task> _tasks = [];
-  List<Passport> _passports = [];
   List<AppFile> _files = [];
   List<Map<String, dynamic>> _hotels = [];
   bool _isLoading = true;
@@ -45,7 +45,6 @@ class _MoreScreenState extends State<MoreScreen> {
       'tasks',
       orderBy: 'priority DESC, due_date ASC',
     );
-    final passports = await db.query('passports');
     final files = await db.query(
       'app_files',
       orderBy: 'created_at DESC',
@@ -60,7 +59,6 @@ class _MoreScreenState extends State<MoreScreen> {
     setState(() {
     _notes = notes.map((m) => Note.fromMap(m)).toList();
     _tasks = tasks.map((m) => Task.fromMap(m)).toList();
-    _passports = passports.map((m) => Passport.fromMap(m)).toList();
     _files = files.map((m) => AppFile.fromMap(m)).toList();
     _hotels = hotels.map((m) => m as Map<String, dynamic>).toList();
     _isLoading = false;
@@ -82,9 +80,6 @@ class _MoreScreenState extends State<MoreScreen> {
                 }),
                 _buildSection('Tasks', Icons.task_alt, _tasks, (task) {
                   _showTaskDetail(task);
-                }),
-                _buildSection('Passports & Visas', Icons.badge, _passports, (p) {
-                  _showPassportDetail(p);
                 }),
                 _buildSection('Files', Icons.folder, _files, (f) {
                   _showFileDetail(f);
@@ -293,6 +288,17 @@ class _MoreScreenState extends State<MoreScreen> {
           subtitle: const Text('Upload/download data to your Raspberry Pi'),
           trailing: _buildSyncStatus(),
           onTap: () => _showSyncDialog(context),
+        ),
+        ListTile(
+          leading: const Icon(Icons.badge_outlined),
+          title: const Text('Documents'),
+          subtitle: const Text('Passports and visas, with expiry alerts'),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+            );
+          },
         ),
         ListTile(
           leading: const Icon(Icons.travel_explore),
@@ -833,41 +839,6 @@ class _MoreScreenState extends State<MoreScreen> {
                   style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Colors.grey),
                 ),
               ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPassportDetail(dynamic passport) {
-    final p = passport as Passport;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(p.country),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Number: ${p.passportNumber}'),
-              const SizedBox(height: 4),
-              Text(
-                p.expired
-                    ? 'Expired: ${DateFormat('MMM d, y').format(p.expiryDate)}'
-                    : 'Expires: ${DateFormat('MMM d, y').format(p.expiryDate)}',
-                style: TextStyle(
-                  color: p.expired ? Colors.red : (p.expiringSoon ? Colors.orange : Colors.green),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
             ],
           ),
         ),

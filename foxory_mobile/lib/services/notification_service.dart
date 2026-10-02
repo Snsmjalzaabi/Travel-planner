@@ -161,9 +161,11 @@ class AlertService {
     }
 
     // Visas: approved and expiring within 7 days
+    // Approved visas expiring within 45 days. The 7-day window was too tight
+    // to be useful — a visa you cannot act on in a week is noise.
     final visaRows = await db.query(
       'visas',
-      where: 'status = ? AND expiry_date IS NOT NULL AND date(expiry_date) <= date("now", "+7 days")',
+      where: "status = ? AND expiry_date IS NOT NULL AND date(expiry_date) <= date('now', '+45 days')",
       whereArgs: ['approved'],
       orderBy: 'expiry_date ASC',
     );
@@ -173,9 +175,7 @@ class AlertService {
       final expiryStr = r['expiry_date'] as String?;
       final hasExpiry = expiryStr != null;
       final expiry = hasExpiry ? DateTime.tryParse(expiryStr) : null;
-      final daysLeft = expiry != null
-          ? expiry.difference(DateTime.now()).inDays
-          : 0;
+      final daysLeft = expiry != null ? expiry.difference(DateTime.now()).inDays : 0;
       alerts.add(AlertRecord(
         title: daysLeft <= 0 ? 'Visa expired' : 'Visa expiring soon',
         body: '$country $visaType visa${daysLeft <= 0 ? ' has expired' : ' expires in $daysLeft day${daysLeft == 1 ? "" : "s"}'}${hasExpiry ? " — $expiryStr" : ""}',
