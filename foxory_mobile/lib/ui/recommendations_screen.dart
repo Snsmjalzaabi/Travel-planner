@@ -45,9 +45,9 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   ];
 
   static const _ageOptions = [
-    ('any', 'Everyone'),
-    ('family', 'Family friendly only'),
-    ('adult', 'Allow 18+'),
+    ('any', 'Show everything'),
+    ('family', 'All ages only'),
+    ('adult', 'Allow 21+ (alcohol/nightlife)'),
   ];
 
   static const _costOptions = [
@@ -290,6 +290,34 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionLabel('${_results.length} ideas', Icons.lightbulb_outline, cs),
+        if (_results.any((r) => r.idea.ageRating == 'adult')) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade700.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade700.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 20, color: Colors.red.shade700),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Some ideas below are 21+ and involve alcohol or nightclub entry. They are labelled in red. Not suitable for children.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         ..._results.map((r) => _ideaCard(r, cs)),
       ],
@@ -362,8 +390,32 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   Widget _ageBadge(String rating, ColorScheme cs) {
     final isAdult = rating == 'adult';
     final isTeen = rating == 'teen';
-    final label = kAgeRatings[rating] ?? rating;
-    final color = isAdult ? Colors.orange : (isTeen ? Colors.blue : Colors.green);
+    if (isAdult) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.red.shade700,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.block, size: 14, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              '21+ ONLY — alcohol / nightlife',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final color = isTeen ? Colors.blue : Colors.green;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -374,13 +426,12 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isAdult ? Icons.no_adult_content : (isTeen ? Icons.groups_2_outlined : Icons.family_restroom),
-            size: 13,
-            color: color,
-          ),
+          Icon(isTeen ? Icons.groups_2_outlined : Icons.family_restroom, size: 13, color: color),
           const SizedBox(width: 5),
-          Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+          Text(
+            isTeen ? '16+ — no alcohol' : 'All ages',
+            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+          ),
         ],
       ),
     );

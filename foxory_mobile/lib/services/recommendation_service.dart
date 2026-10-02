@@ -20,11 +20,19 @@ const kTripTypes = <String, String>{
   'business': 'Business',
 };
 
-/// Age-suitability labels.
+/// Age-suitability labels. Deliberately blunt — no euphemisms.
+/// 'adult' means alcohol and/or late-night clubbing: 21+ only.
 const kAgeRatings = <String, String>{
-  'all': 'Family friendly',
-  'teen': 'Teen friendly (13+)',
-  'adult': 'Adults only (18+)',
+  'all': 'Family friendly — all ages',
+  'teen': '16+ — no alcohol',
+  'adult': '21+ ONLY — alcohol / nightlife',
+};
+
+/// Short label used on reason chips.
+const kAgeShort = <String, String>{
+  'all': 'All ages',
+  'teen': '16+',
+  'adult': '21+',
 };
 
 /// One suggestible thing to do.
@@ -50,7 +58,8 @@ class ActivityIdea {
   /// Minimum group size that makes sense (e.g. group tours need 2+).
   final int minGroup;
 
-  /// Age suitability: 'all' (family friendly), 'teen' (13+) or 'adult' (18+).
+  /// Age suitability. 'all' = any age. 'teen' = 16+, no alcohol.
+  /// 'adult' = 21+ only, involves alcohol and/or late-night clubbing.
   final String ageRating;
 
   /// Rough cost per person in USD.
@@ -120,7 +129,7 @@ const List<ActivityIdea> kActivityIdeas = [
   ),
   ActivityIdea(
     title: 'Rooftop dinner with a view',
-    blurb: 'Book ahead for sunset. A good call for a couple or a celebration.',
+    blurb: 'Book ahead for sunset. Cocktails and wine with the meal — this is an adults-only evening.',
     category: 'Food',
     timeOfDay: 'evening',
     suits: ['couple', 'friends', 'girls'],
@@ -309,7 +318,7 @@ const List<ActivityIdea> kActivityIdeas = [
   // ---------- Nightlife ----------
   ActivityIdea(
     title: 'Rooftop bar night',
-    blurb: 'Dress smarter than you think you need to. Often the group favourite.',
+    blurb: 'Cocktails and loud music. Adults only, and expect to queue on a weekend.',
     category: 'Nightlife',
     timeOfDay: 'night',
     suits: ['friends', 'girls', 'boys'],
@@ -320,7 +329,7 @@ const List<ActivityIdea> kActivityIdeas = [
   ),
   ActivityIdea(
     title: 'Dance or music club',
-    blurb: 'Late option. Check the entry policy and taxi home before you go in.',
+    blurb: 'Late-night clubbing with alcohol service. Adults only, and do not drive home.',
     category: 'Nightlife',
     timeOfDay: 'night',
     suits: ['friends', 'boys', 'girls'],
@@ -331,7 +340,7 @@ const List<ActivityIdea> kActivityIdeas = [
   ),
   ActivityIdea(
     title: 'Shisha café or tea house',
-    blurb: 'Low-key evening that still feels local. Good mixed-gender group hangout.',
+    blurb: 'Shisha pipes and strong coffee. Adults only even though the tea is child-friendly.',
     category: 'Nightlife',
     timeOfDay: 'night',
     suits: ['friends', 'family'],
@@ -344,7 +353,7 @@ const List<ActivityIdea> kActivityIdeas = [
   // ---------- Sport ----------
   ActivityIdea(
     title: 'Football match',
-    blurb: 'Cheaper and louder than any tour. Supporters welcome at most league games.',
+    blurb: 'Cheaper and louder than any tour. Family friendly at most league grounds, though some concourses serve alcohol.',
     category: 'Sport',
     timeOfDay: 'evening',
     suits: ['boys', 'friends'],
@@ -369,7 +378,7 @@ const List<ActivityIdea> kActivityIdeas = [
   // ---------- Business ----------
   ActivityIdea(
     title: 'Business lounge or coworking',
-    blurb: 'Fast wifi and a quiet desk between meetings. Cheaper than a café you cannot work in.',
+    blurb: 'Fast wifi and a quiet desk between meetings. Adults only due to the bar and phone calls.',
     category: 'Business',
     timeOfDay: 'morning',
     suits: ['business'],
@@ -380,7 +389,7 @@ const List<ActivityIdea> kActivityIdeas = [
   ),
   ActivityIdea(
     title: 'Client dinner',
-    blurb: 'Pick somewhere central and book early. Ask about dietary requirements in advance.',
+    blurb: 'Pick somewhere central and book early. Alcohol usually flows — cover it in the expense report.',
     category: 'Business',
     timeOfDay: 'evening',
     suits: ['business'],
@@ -482,7 +491,8 @@ class RecommendationQuery {
   final String season;
   final int maxCostUsd;
 
-  /// 'any', 'family' (only family-friendly), or 'adult' (allow 18+ only ideas).
+  /// 'any' = show everything, 'family' = only all-ages ideas,
+  /// 'adult' = allow 21+ (alcohol/nightlife) ideas through.
   final String ageFilter;
 
   const RecommendationQuery({
@@ -589,7 +599,7 @@ class RecommendationService {
     }
     if (idea.season == season) reasons.add('Right for ${_seasonLabel(season)}');
     if (q.travellers >= 6) reasons.add('Works for a group of ${q.travellers}');
-    if (idea.ageRating == 'adult') reasons.add('18+');
+    if (idea.ageRating == 'adult') reasons.add('21+ · alcohol');
     if (idea.costUsd == 0) reasons.add('Free');
     return reasons;
   }
