@@ -17,6 +17,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   List<Expense> _expenses = [];
   bool _isLoading = true;
   String _displayCurrency = 'AED';
+  List<Trip> _trips = [];
+  int? _tripFilter;
   final Map<String, double> _convertedAmounts = {};
 
   @override
@@ -28,8 +30,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Future<void> _load() async {
     final db = await DatabaseHelper().database;
     final rows = await db.query('expenses', orderBy: 'created_at DESC');
+    final trips = await db.query('trips', orderBy: 'departure ASC');
     setState(() {
       _expenses = rows.map((m) => Expense.fromMap(m)).toList();
+      _trips = trips.map(Trip.fromMap).toList();
       _isLoading = false;
     });
     await _refreshConvertedAmounts();
@@ -55,6 +59,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final otherCommentCtrl = TextEditingController(text: expense?.notes ?? '');
     String currency = expense?.currency ?? 'AED';
     String category = _normalizeCategory(expense?.category ?? 'transportation');
+    int? tripId = expense?.tripId ?? _tripFilter;
     final db = DatabaseHelper();
     final currencyService = CurrencyService();
 
@@ -112,6 +117,22 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     maxLines: 2,
                   ),
                 ],
+                if (_trips.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int?>(
+                    initialValue: _trips.any((x) => x.id == tripId) ? tripId : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Trip',
+                      helperText: 'Links this spend to a trip budget',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('No trip')),
+                      ..._trips.map((x) => DropdownMenuItem(value: x.id, child: Text(x.name, overflow: TextOverflow.ellipsis))),
+                    ],
+                    onChanged: (v) => setModalState(() => tripId = v),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -158,6 +179,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       final baseAmount = await currencyService.convert(amount, currency, 'USD');
                       final now = DateTime.now().toIso8601String();
                       final row = {
+                        'trip_id': tripId,
                         'title': title,
                         'category': category,
                         'amount': amount,

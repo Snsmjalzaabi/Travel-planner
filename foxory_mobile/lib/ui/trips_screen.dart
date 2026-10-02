@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../core/database_helper.dart';
 import '../ui/create_trip_dialog.dart';
 import '../services/recommendation_service.dart';
+import 'trip_budget_panel.dart';
 
 class TripsScreen extends StatefulWidget {
   const TripsScreen({super.key});
@@ -25,14 +26,18 @@ class _TripsScreenState extends State<TripsScreen> {
   }
 
   Future<void> _loadTrips() async {
+    final db = await DatabaseHelper().database;
+    final expenseRows = await db.query('expenses', orderBy: 'created_at DESC');
     final all = await DatabaseHelper().loadTripsWithRelations();
     final trips = all.where((t) => _matchesStatus(t.status)).toList();
+    final expenses = expenseRows.map(Expense.fromMap).toList();
     final hotelsByTrip = <int, int>{
       for (final t in trips)
         if (t.id != null) t.id!: t.hotels.length,
     };
     setState(() {
       _trips = trips;
+      _expenses = expenses;
       _hotelsByTrip = hotelsByTrip;
       _isLoading = false;
     });
@@ -40,6 +45,9 @@ class _TripsScreenState extends State<TripsScreen> {
 
   /// Hotels count per trip id ( populated by _loadTrips ).
   Map<int, int> _hotelsByTrip = {};
+
+  /// Kept in memory so the budget panel in the trip sheet is live.
+  List<Expense> _expenses = [];
 
 
   /// Trip statuses, stored lowercase by the create/edit form.
@@ -425,6 +433,12 @@ class _TripsScreenState extends State<TripsScreen> {
                   _detailRow(Icons.groups_outlined, 'Trip type', kTripTypes[trip.tripType] ?? trip.tripType),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            TripBudgetPanel(
+              key: ValueKey('budget-${trip.id}-${_expenses.length}'),
+              trip: trip,
+              allExpenses: _expenses,
             ),
             if (trip.attractions.isNotEmpty || trip.notes.isNotEmpty) ...[
               const SizedBox(height: 14),

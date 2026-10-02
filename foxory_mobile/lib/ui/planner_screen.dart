@@ -6,6 +6,7 @@ import '../models/models.dart';
 import '../core/database_helper.dart';
 import 'hotel_booking_form.dart';
 import 'create_trip_dialog.dart';
+import 'trip_budget_panel.dart';
 
 class PlannerScreen extends StatefulWidget {
   final bool isActive;
@@ -25,6 +26,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
   /// 'packing' or 'all'.
   String _section = 'all';
 
+  List<Expense> _expenses = [];
+
   @override
   void initState() {
     super.initState();
@@ -42,8 +45,11 @@ class _PlannerScreenState extends State<PlannerScreen> {
   Future<void> _loadTrips() async {
     // Load all saved trips (status casing varies historically, so no filter)
     // and attach hotels/flights/itinerary/packing so counts are real.
+    final db = await DatabaseHelper().database;
+    final expenseRows = await db.query('expenses', orderBy: 'created_at DESC');
     final loadedTrips = await DatabaseHelper().loadTripsWithRelations();
     setState(() {
+      _expenses = expenseRows.map(Expense.fromMap).toList();
       _tripsWithPlanner = loadedTrips;
       _selectedTripId ??= loadedTrips.isNotEmpty ? loadedTrips.first.id : null;
       _isLoading = false;
@@ -135,6 +141,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
               _plannerTab('Itinerary', Icons.calendar_today, trip?.itineraryDays.length, colorScheme),
               _plannerTab('Activities', Icons.place, trip?.activities.length, colorScheme),
               _plannerTab('Packing', Icons.inventory_2, trip?.packingItems.length, colorScheme),
+              _plannerTab('Budget', Icons.account_balance_wallet_outlined, null, colorScheme),
             ],
           ),
         ),
@@ -290,6 +297,19 @@ class _PlannerScreenState extends State<PlannerScreen> {
           _listBlock(cs, 'Packing list', Icons.inventory_2,
               t.packingItems.map((i) => _packingTile(cs, i)).toList(),
               () => _showPackingItemForm(t)),
+        ];
+      case 'budget':
+        return [
+          TripBudgetPanel(
+            key: ValueKey('budget-${t.id}-${_expenses.length}'),
+            trip: t,
+            allExpenses: _expenses,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Expenses tagged to this trip count towards its budget. Add them from the Expenses tab.',
+            style: GoogleFonts.inter(fontSize: 12, color: cs.onSurface.withValues(alpha: 0.6)),
+          ),
         ];
       default:
         return _overviewBlocks(cs, t);
