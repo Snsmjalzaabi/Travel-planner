@@ -39,6 +39,10 @@ class Trip {
   final String transportLabel;
   final PersonalInfo? personalInfo;
 
+  /// Trip vibe used to personalise activity recommendations.
+  /// One of: family, friends, girls, boys, couple, solo, business.
+  final String tripType;
+
   Trip({
     this.id,
     required this.name,
@@ -67,6 +71,7 @@ class Trip {
     this.destinationImage,
     this.transportLabel = 'Flight',
     this.personalInfo,
+    this.tripType = 'friends',
     List<String>? attractions,
     List<String>? notes,
     DateTime? createdAt,
@@ -105,6 +110,7 @@ class Trip {
         'distance_km': distanceKm,
         'destination_image': destinationImage,
         'transport_label': transportLabel,
+        'trip_type': tripType,
         'attractions': attractions.join(','),
         'notes': notes.join(','),
         'created_at': createdAt.toIso8601String(),
@@ -140,6 +146,7 @@ class Trip {
         distanceKm: map['distance_km'] as double?,
         destinationImage: map['destination_image'] as String?,
         transportLabel: map['transport_label'] as String? ?? 'Flight',
+        tripType: (map['trip_type'] as String?) ?? 'friends',
         personalInfo: map['personal_info'] != null
             ? PersonalInfo.fromMap(map['personal_info'] as Map<String, dynamic>)
             : null,
@@ -194,6 +201,7 @@ class Trip {
     String? destinationImage,
     String? transportLabel,
     PersonalInfo? personalInfo,
+    String? tripType,
     List<String>? attractions,
     List<String>? notes,
     DateTime? createdAt,
@@ -229,6 +237,7 @@ class Trip {
       destinationImage: destinationImage ?? this.destinationImage,
       transportLabel: transportLabel ?? this.transportLabel,
       personalInfo: personalInfo ?? this.personalInfo,
+      tripType: tripType ?? this.tripType,
       attractions: attractions ?? this.attractions,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,

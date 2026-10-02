@@ -33,6 +33,7 @@ class DatabaseHelper {
 
   Future<void> _ensureSchema(Database db) async {
     await _addColumnIfMissing(db, 'trips', 'transport_label', 'TEXT DEFAULT \'Flight\'');
+    await _addColumnIfMissing(db, 'trips', 'trip_type', 'TEXT DEFAULT \'friends\'');
     await _addColumnIfMissing(db, 'trips', 'destination_image', 'TEXT');
   }
 
@@ -69,6 +70,7 @@ class DatabaseHelper {
         "base_rate" REAL,
         "transport_type" TEXT DEFAULT 'flight',
         "transport_label" TEXT DEFAULT 'Flight',
+        "trip_type" TEXT DEFAULT 'friends',
         "status" TEXT DEFAULT 'IDEA',
         "readiness" INTEGER DEFAULT 0,
         "distance" REAL,

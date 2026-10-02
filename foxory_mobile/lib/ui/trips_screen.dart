@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/models.dart';
 import '../core/database_helper.dart';
 import '../ui/create_trip_dialog.dart';
+import '../services/recommendation_service.dart';
 
 class TripsScreen extends StatefulWidget {
   const TripsScreen({super.key});
@@ -424,6 +425,8 @@ class _TripsScreenState extends State<TripsScreen> {
                     const Divider(height: 20),
                     _detailRow(Icons.flag_outlined, 'Countries', '${trip.originCountry} → ${trip.destCountry}'),
                   ],
+                  const Divider(height: 20),
+                  _detailRow(Icons.groups_outlined, 'Trip type', kTripTypes[trip.tripType] ?? trip.tripType),
                 ],
               ),
             ),

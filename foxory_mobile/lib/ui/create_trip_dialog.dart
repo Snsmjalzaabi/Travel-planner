@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
+import '../services/recommendation_service.dart';
 
 class CreateTripDialog extends StatefulWidget {
   final Future<void> Function(Trip) onTripCreated;
@@ -32,6 +33,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
   int _travelers = 1;
   String _transport = 'flight';
   String _status = 'planning';
+  String _tripType = 'friends';
   final _currencyCtrl = TextEditingController(text: 'USD');
   String _baseCurrency = 'USD';
   double _totalBudget = 0;
@@ -74,6 +76,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
     _travelers = trip.travelers;
     _transport = trip.transport;
     _status = trip.status.toLowerCase();
+    _tripType = trip.tripType;
     _baseCurrency = trip.baseCurrency.toUpperCase();
     _currencyCtrl.text = _baseCurrency;
     _totalBudget = trip.totalBudget;
@@ -457,6 +460,26 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
                   ],
                 ),
                 const SizedBox(height: 12),
+                // Trip vibe (drives recommendations)
+                DropdownButtonFormField<String>(
+                  initialValue: _tripType,
+                  decoration: InputDecoration(
+                    labelText: 'Trip type',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.groups_outlined),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    filled: true,
+                    fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  ),
+                  items: kTripTypes.entries
+                      .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _tripType = v);
+                  },
+                ),
+                const SizedBox(height: 12),
                 // Destination Image URL
                 TextFormField(
                   controller: _destLatLngCtrl,
@@ -739,6 +762,7 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
       transport: _transport,
       transportLabel: _transportLabel(_transport),
       status: _status,
+      tripType: _tripType,
       baseCurrency: _baseCurrency,
       totalBudget: _totalBudget,
       personalInfo: _showPersonal

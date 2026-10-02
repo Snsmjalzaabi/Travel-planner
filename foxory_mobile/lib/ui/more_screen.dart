@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../ui/hotel_booking_form.dart';
 import '../core/app_settings.dart';
 import '../services/local_pi_sync_service.dart';
+import 'recommendations_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -292,6 +293,17 @@ class _MoreScreenState extends State<MoreScreen> {
           subtitle: const Text('Upload/download data to your Raspberry Pi'),
           trailing: _buildSyncStatus(),
           onTap: () => _showSyncDialog(context),
+        ),
+        ListTile(
+          leading: const Icon(Icons.travel_explore),
+          title: const Text('Recommendations'),
+          subtitle: const Text('Ideas based on your trip, dates and group'),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const RecommendationsScreen()),
+            );
+          },
         ),
         ListTile(
           leading: const Icon(Icons.folder_outlined),
