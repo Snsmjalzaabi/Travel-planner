@@ -5,6 +5,7 @@ import 'dart:math' as _math;
 import '../models/models.dart';
 import '../services/currency_service.dart';
 import '../core/database_helper.dart';
+import 'expense_form_sheet.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -17,7 +18,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   List<Expense> _expenses = [];
   bool _isLoading = true;
   String _displayCurrency = 'AED';
-  List<Trip> _trips = [];
   int? _tripFilter;
   final Map<String, double> _convertedAmounts = {};
 
@@ -30,188 +30,18 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Future<void> _load() async {
     final db = await DatabaseHelper().database;
     final rows = await db.query('expenses', orderBy: 'created_at DESC');
-    final trips = await db.query('trips', orderBy: 'departure ASC');
     setState(() {
       _expenses = rows.map((m) => Expense.fromMap(m)).toList();
-      _trips = trips.map(Trip.fromMap).toList();
       _isLoading = false;
     });
     await _refreshConvertedAmounts();
   }
 
-  static const _expenseCategories = [
-    'transportation',
-    'food',
-    'accommodation',
-    'activities',
-    'shopping',
-    'groceries',
-    'other',
-  ];
-
   void _add() => _showExpenseForm();
 
-  void _showExpenseForm({Expense? expense}) {
-    final titleCtrl = TextEditingController(text: expense?.title ?? '');
-    final amountCtrl = TextEditingController(
-      text: expense == null ? '' : expense.amount.toStringAsFixed(2),
-    );
-    final otherCommentCtrl = TextEditingController(text: expense?.notes ?? '');
-    String currency = expense?.currency ?? 'AED';
-    String category = _normalizeCategory(expense?.category ?? 'transportation');
-    int? tripId = expense?.tripId ?? _tripFilter;
-    final db = DatabaseHelper();
-    final currencyService = CurrencyService();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, top: 16, left: 16, right: 16),
-        child: StatefulBuilder(
-          builder: (context, setModalState) => SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-                ),
-                Text(
-                  expense == null ? 'Add Expense' : 'Edit Expense',
-                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
-                  autofocus: expense == null,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: category,
-                  decoration: const InputDecoration(
-                    labelText: 'Expense Type',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _expenseCategories
-                      .map((c) => DropdownMenuItem(value: c, child: Text(_categoryLabel(c))))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) setModalState(() => category = v);
-                  },
-                ),
-                if (category == 'other') ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: otherCommentCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Comment for Other',
-                      hintText: 'Example: visa fee, gift, emergency item...',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
-                if (_trips.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<int?>(
-                    initialValue: _trips.any((x) => x.id == tripId) ? tripId : null,
-                    decoration: const InputDecoration(
-                      labelText: 'Trip',
-                      helperText: 'Links this spend to a trip budget',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('No trip')),
-                      ..._trips.map((x) => DropdownMenuItem(value: x.id, child: Text(x.name, overflow: TextOverflow.ellipsis))),
-                    ],
-                    onChanged: (v) => setModalState(() => tripId = v),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: amountCtrl,
-                        decoration: const InputDecoration(labelText: 'Amount', border: OutlineInputBorder()),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: currency,
-                        decoration: const InputDecoration(labelText: 'Currency', border: OutlineInputBorder()),
-                        items: ['AED', 'USD', 'EUR', 'GBP', 'SAR', 'INR', 'UZS']
-                            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                            .toList(),
-                        onChanged: (v) => v != null ? setModalState(() => currency = v) : null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (!mounted) return;
-                      final title = titleCtrl.text.trim();
-                      final amountStr = amountCtrl.text.trim().replaceAll(',', '');
-                      final otherComment = otherCommentCtrl.text.trim();
-                      if (title.isEmpty || amountStr.isEmpty) return;
-                      if (category == 'other' && otherComment.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Add a comment when using Other')),
-                        );
-                        return;
-                      }
-
-                      final amount = double.tryParse(amountStr);
-                      if (amount == null || amount <= 0) return;
-
-                      final baseAmount = await currencyService.convert(amount, currency, 'USD');
-                      final now = DateTime.now().toIso8601String();
-                      final row = {
-                        'trip_id': tripId,
-                        'title': title,
-                        'category': category,
-                        'amount': amount,
-                        'currency': currency,
-                        'base_amount': baseAmount,
-                        'date': expense?.date.toIso8601String() ?? now,
-                        'notes': category == 'other' ? otherComment : null,
-                        'created_at': expense?.createdAt.toIso8601String() ?? now,
-                        'updated_at': now,
-                        'sync_enabled': 1,
-                      };
-
-                      if (expense?.id == null) {
-                        await db.insert('expenses', row);
-                      } else {
-                        await db.update('expenses', row, where: 'id = ?', whereArgs: [expense!.id]);
-                      }
-
-                      if (!mounted) return;
-                      Navigator.pop(ctx);
-                      await _load();
-                    },
-                    child: Text(expense == null ? 'Save' : 'Update'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  Future<void> _showExpenseForm({Expense? expense}) async {
+    final saved = await showExpenseSheet(context, expense: expense, initialTripId: _tripFilter);
+    if (saved) await _load();
   }
 
   Future<void> _deleteExpense(Expense expense) async {
@@ -309,8 +139,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         ),
         subtitle: Text(
           expense.category == 'other' && (expense.notes?.isNotEmpty ?? false)
-              ? '${_categoryLabel(expense.category)} • ${expense.notes}'
-              : _categoryLabel(expense.category),
+              ? '${expenseCategoryLabel(expense.category)} • ${expense.notes}'
+              : expenseCategoryLabel(expense.category),
           style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -472,33 +302,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     return const SizedBox();
   }
 
-  static String _categoryLabel(String category) {
-    switch (category) {
-      case 'transportation':
-        return 'Transportation';
-      case 'food':
-        return 'Food';
-      case 'accommodation':
-        return 'Accommodation';
-      case 'activities':
-        return 'Activities';
-      case 'shopping':
-        return 'Shopping';
-      case 'groceries':
-        return 'Groceries';
-      case 'other':
-        return 'Other';
-      default:
-        return category.isEmpty ? 'Other' : category;
-    }
-  }
 
-  String _normalizeCategory(String category) {
-    final c = category.toLowerCase().trim();
-    if (c == 'transport') return 'transportation';
-    if (_expenseCategories.contains(c)) return c;
-    return 'other';
-  }
 
   Color _categoryColor(String cat) {
     switch (cat.toLowerCase()) {

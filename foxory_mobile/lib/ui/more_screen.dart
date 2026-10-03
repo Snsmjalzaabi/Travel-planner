@@ -8,6 +8,7 @@ import '../core/app_settings.dart';
 import '../services/local_pi_sync_service.dart';
 import 'recommendations_screen.dart';
 import 'documents_screen.dart';
+import 'expense_form_sheet.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -716,76 +717,16 @@ class _MoreScreenState extends State<MoreScreen> {
     );
   }
 
-  void _quickExpense(BuildContext context) {
-    final titleCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          top: 16,
-          left: 16,
-          right: 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Quick Expense', style: Theme.of(ctx).textTheme.headlineSmall),
-            const SizedBox(height: 12),
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Description'),
-              autofocus: true,
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: amountCtrl,
-              decoration: const InputDecoration(labelText: 'Amount (AED)'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    final amount = double.tryParse(amountCtrl.text) ?? 0;
-                    if (amount > 0 && titleCtrl.text.isNotEmpty) {
-                      final db = DatabaseHelper();
-                      db.insert('expenses', {
-                        'title': titleCtrl.text,
-                        'category': 'other',
-                        'amount': amount,
-                        'currency': 'AED',
-                        'date': DateTime.now().toIso8601String(),
-                        'merchant': '',
-                        'notes': '',
-                        'created_at': DateTime.now().toIso8601String(),
-                        'updated_at': DateTime.now().toIso8601String(),
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Expense logged')),
-                      );
-                      setState(() {});
-                    }
-                  },
-                  child: const Text('Save'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+  /// Uses the same sheet as the Expenses tab, so category, trip and currency
+  /// behave identically. The old local form hardcoded category 'other', AED and
+  /// no trip, which silently pushed spend outside any trip budget.
+  Future<void> _quickExpense(BuildContext context) async {
+    final saved = await showExpenseSheet(context);
+    if (!saved || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Expense saved')),
     );
+    setState(() {});
   }
 
   void _showNoteDetail(dynamic note) {
