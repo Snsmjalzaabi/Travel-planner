@@ -15,32 +15,33 @@ void main() async {
   final dbHelper = DatabaseHelper();
   final alerts = AlertService(dbHelper);
 
-  // Initialize notification plugin — quick, but guard with timeout
-  // so a hung plugin init never blocks the splash.
-  const timeout = Duration(seconds: 10);
-  try {
-    await Future.any([alerts.init(), Future.delayed(timeout)]);
-  } catch (_) {
-    // init timed out or failed — notifications won't work, but app launches
-  }
-
-  // Create notification channel (Android only, fast)
-  try {
-    await Future.any([alerts.ensureChannel(), Future.delayed(timeout)]);
-  } catch (_) {}
-
-  // Request notification permission with timeout.
-  // On Android 13+ this may show a system dialog. If it doesn't
-  // appear within the timeout, continue — user can grant from
-  // Settings later and notifications will start working then.
-  try {
-    await Future.any([alerts.requestPermission(), Future.delayed(timeout)]);
-  } catch (_) {}
-
-  // Schedule daily check with timeout
-  try {
-    await Future.any([alerts.scheduleDailyCheck(hour: 8, minute: 0), Future.delayed(timeout)]);
-  } catch (_) {}
+  // Everything below is best-effort and must never block the first frame.
+  // Each step is capped so a hung plugin cannot strand the app on splash.
+  unawaited(_initNotifications(alerts));
 
   runApp(FoxoryApp(prefs: prefs, dbHelper: dbHelper, alerts: alerts));
+}
+
+/// Initialises notifications in the background.
+///
+/// Deliberately does NOT request permission. The old code called
+/// Permission.notification.request() before the first frame, wrapped in a 10s
+/// timeout that swallowed the result - so if the dialog never appeared,
+/// notifications were silently off and the user had no way to find out or fix
+/// it. Permission is now requested from Settings, where the state is visible
+/// and recoverable.
+Future<void> _initNotifications(AlertService alerts) async {
+  const timeout = Duration(seconds: 10);
+
+  Future<void> guard(Future<void> work) async {
+    try {
+      await Future.any([work, Future.delayed(timeout)]);
+    } catch (_) {
+      // Non-fatal: the app runs fine without notifications.
+    }
+  }
+
+  await guard(alerts.init());
+  await guard(alerts.ensureChannel());
+  await guard(alerts.scheduleDailyCheck());
 }

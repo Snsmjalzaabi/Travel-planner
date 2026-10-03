@@ -8,6 +8,7 @@ import '../core/app_settings.dart';
 import '../services/local_pi_sync_service.dart';
 import 'recommendations_screen.dart';
 import 'documents_screen.dart';
+import 'notification_settings_screen.dart';
 import 'expense_form_sheet.dart';
 
 class MoreScreen extends StatefulWidget {
@@ -298,6 +299,17 @@ class _MoreScreenState extends State<MoreScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.notifications_outlined),
+          title: const Text('Notifications'),
+          subtitle: const Text('Expiry warnings and daily check'),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationSettingsScreen()),
             );
           },
         ),

@@ -4,8 +4,33 @@ import 'package:intl/intl.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 import '../core/database_helper.dart';
+
+/// Whether the OS will let this app show notifications.
+enum NotificationPermissionState {
+  granted,
+  notAsked,
+  denied,
+
+  /// Denied permanently - only fixable in the OS settings app.
+  blockedNeedsSettings,
+  unknown,
+}
+
+extension NotificationPermissionStateX on NotificationPermissionState {
+  bool get canNotify => this == NotificationPermissionState.granted;
+
+  bool get needsSettings => this == NotificationPermissionState.blockedNeedsSettings;
+
+  String get label => switch (this) {
+        NotificationPermissionState.granted => 'Notifications are on',
+        NotificationPermissionState.notAsked => 'Permission not requested yet',
+        NotificationPermissionState.denied => 'Permission denied',
+        NotificationPermissionState.blockedNeedsSettings => 'Blocked - enable in phone Settings',
+        NotificationPermissionState.unknown => 'Unknown',
+      };
+}
 
 /// Alert service for passport expiry, visa expiry, and trip reminders.
 ///
@@ -57,19 +82,51 @@ class AlertService {
     await _plugin.initialize(initSettings);
   }
 
+  /// Current permission state without prompting the user.
+  ///
+  /// Safe to call at any time. Before, the only way to learn the state was
+  /// [requestPermission], which pops a system dialog - so the app could not
+  /// tell the user their alerts were silently off.
+  Future<NotificationPermissionState> permissionState() async {
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      return NotificationPermissionState.granted;
+    }
+    try {
+      final status = await ph.Permission.notification.status;
+      if (status.isGranted) return NotificationPermissionState.granted;
+      if (status.isPermanentlyDenied || status.isRestricted) {
+        return NotificationPermissionState.blockedNeedsSettings;
+      }
+      if (status.isDenied) return NotificationPermissionState.notAsked;
+      return NotificationPermissionState.denied;
+    } catch (_) {
+      return NotificationPermissionState.unknown;
+    }
+  }
+
   /// Request notification permission at runtime.
   /// Returns true when notifications can fire.
   Future<bool> requestPermission() async {
-    if (Platform.isAndroid) {
-      final status = await Permission.notification.request();
-      return status.isGranted;
-    }
-    if (Platform.isIOS) {
-      final status = await Permission.notification.request();
+    if (Platform.isAndroid || Platform.isIOS) {
+      final status = await ph.Permission.notification.request();
       return status.isGranted;
     }
     return true;
   }
+
+  /// Opens the OS settings page for this app so a permanently-denied user can
+  /// re-enable notifications by hand.
+  Future<bool> openAppSettings() async {
+    try {
+      return await ph.openAppSettings();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Fires today's alerts immediately, so the user can confirm notifications
+  /// actually arrive rather than waiting until 08:00 to find out.
+  Future<int> testNotifications() => fireAlertsNow();
 
   /// Create the notification channel on Android (no-op on iOS).
   /// Call once after [init]; safe to call multiple times.
