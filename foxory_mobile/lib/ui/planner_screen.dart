@@ -7,6 +7,7 @@ import '../core/database_helper.dart';
 import 'hotel_booking_form.dart';
 import 'create_trip_dialog.dart';
 import 'trip_budget_panel.dart';
+import '../services/soft_delete.dart';
 
 class PlannerScreen extends StatefulWidget {
   final bool isActive;
@@ -46,7 +47,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     // Load all saved trips (status casing varies historically, so no filter)
     // and attach hotels/flights/itinerary/packing so counts are real.
     final db = await DatabaseHelper().database;
-    final expenseRows = await db.query('expenses', orderBy: 'created_at DESC');
+    final expenseRows = await db.query('expenses', where: 'deleted_at IS NULL', orderBy: 'created_at DESC');
     final loadedTrips = await DatabaseHelper().loadTripsWithRelations();
     setState(() {
       _expenses = expenseRows.map(Expense.fromMap).toList();
@@ -630,7 +631,9 @@ class _PlannerScreenState extends State<PlannerScreen> {
       ),
     );
     if (ok != true) return;
-    await DatabaseHelper().delete(table, where: 'id = ?', whereArgs: [id]);
+    // Soft delete: a restore must not bring this row back.
+    final db = await DatabaseHelper().database;
+    await softDelete(db, table, id);
     await _loadTrips();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));

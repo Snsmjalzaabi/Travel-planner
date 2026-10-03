@@ -415,6 +415,16 @@ class _MoreScreenState extends State<MoreScreen> {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Close'),
           ),
+          TextButton(
+            onPressed: () async {
+              final port = int.tryParse(portController.text.trim()) ?? 9101;
+              await settings.setPiAddress(ipController.text);
+              await settings.setPiPort(port);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              await _runRestore(settings, replace: false);
+            },
+            child: const Text('Restore'),
+          ),
           ElevatedButton.icon(
             icon: const Icon(Icons.cloud_upload_outlined),
             label: const Text('Sync Now'),
@@ -450,6 +460,77 @@ class _MoreScreenState extends State<MoreScreen> {
       _lastSyncMessage = result.message;
     });
 
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.success ? Colors.green : Colors.orange,
+      ),
+    );
+  }
+
+  /// Pulls the Pi's latest backup and merges it in.
+  ///
+  /// Merge (not replace) is the default so a restore cannot quietly destroy
+  /// anything added on this device since the last backup.
+  Future<void> _runRestore(AppSettings settings, {required bool replace}) async {
+    setState(() {
+      _isSyncing = true;
+      _lastSyncMessage = 'Downloading from Pi...';
+      _lastSyncSuccess = null;
+    });
+
+    final service = LocalPiSyncService(settings: settings, dbHelper: DatabaseHelper());
+    final download = await service.downloadLatest();
+
+    if (!download.success || download.backupTables == null) {
+      if (!mounted) return;
+      setState(() {
+        _isSyncing = false;
+        _lastSyncSuccess = false;
+        _lastSyncMessage = download.message;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(download.message), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    if (replace) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Replace everything?'),
+          content: const Text(
+            'This deletes ALL data on this phone and replaces it with the Pi backup. Anything added here since the last sync will be lost.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Replace'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) {
+        if (mounted) setState(() => _isSyncing = false);
+        return;
+      }
+    }
+
+    final result = replace
+        ? await service.replaceFromBackup(download.backupTables!)
+        : await service.restoreBackup(download.backupTables!);
+
+    if (!mounted) return;
+    setState(() {
+      _isSyncing = false;
+      _lastSyncSuccess = result.success;
+      _lastSyncMessage = result.message;
+    });
+    await _loadData();
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result.message),

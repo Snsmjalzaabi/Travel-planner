@@ -29,7 +29,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   Future<void> _load() async {
     final db = await DatabaseHelper().database;
-    final rows = await db.query('expenses', orderBy: 'created_at DESC');
+    final rows = await db.query('expenses', where: 'deleted_at IS NULL', orderBy: 'created_at DESC');
     setState(() {
       _expenses = rows.map((m) => Expense.fromMap(m)).toList();
       _isLoading = false;

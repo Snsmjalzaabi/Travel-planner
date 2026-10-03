@@ -2,7 +2,15 @@
 """Tiny local sync server for Foxory Travel & Life.
 
 Receives JSON uploads from the phone/app and stores timestamped backups
-under ~/foxory-sync/. Personal LAN use only.
+under ~/foxory-sync/. Serves those backups back for restore/download.
+Personal LAN use only.
+
+Endpoints
+  GET  /health                     -> liveness
+  GET  /sync/backups               -> list of stored backups (newest first)
+  GET  /sync/download?device_id=X  -> newest backup for a device
+  GET  /sync/download?file=NAME    -> one specific backup
+  POST /sync/upload                -> store a backup
 """
 from __future__ import annotations
 
@@ -10,7 +18,7 @@ import json
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 HOST = "0.0.0.0"
 PORT = 9101
@@ -22,10 +30,82 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+
         if parsed.path == "/health":
             self._json(200, {"ok": True, "service": "foxory-sync"})
             return
+
+        if parsed.path == "/sync/backups":
+            self._handle_list(parsed)
+            return
+
+        if parsed.path == "/sync/download":
+            self._handle_download(parsed)
+            return
+
         self._json(404, {"ok": False, "error": "not found"})
+
+    def _handle_list(self, parsed):
+        query = parse_qs(parsed.query)
+        device = _safe_name((query.get("device_id") or [""])[0])
+        device_dir = OUT_DIR / device if device else OUT_DIR
+        if not device_dir.is_dir():
+            self._json(200, {"ok": True, "backups": []})
+            return
+
+        backups = []
+        for f in sorted(device_dir.glob("foxory-sync-*.json"), reverse=True):
+            stat = f.stat()
+            backups.append({
+                "file": f.name,
+                "bytes": stat.st_size,
+                "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+            })
+        self._json(200, {"ok": True, "backups": backups})
+
+    def _handle_download(self, parsed):
+        query = parse_qs(parsed.query)
+
+        # Specific file requested. Only ever serve files under OUT_DIR.
+        requested = (query.get("file") or [""])[0]
+        if requested:
+            candidate = (OUT_DIR / requested).resolve()
+            try:
+                candidate.relative_to(OUT_DIR.resolve())
+            except ValueError:
+                self._json(400, {"ok": False, "error": "invalid file"})
+                return
+            if not candidate.is_file():
+                self._json(404, {"ok": False, "error": "not found"})
+                return
+            self._send_backup(candidate)
+            return
+
+        device = _safe_name((query.get("device_id") or [""])[0])
+        device_dir = OUT_DIR / device
+        latest = device_dir / "latest.json"
+        if latest.is_file():
+            self._send_backup(latest)
+            return
+
+        candidates = sorted(device_dir.glob("foxory-sync-*.json"), reverse=True) if device_dir.is_dir() else []
+        if not candidates:
+            self._json(404, {"ok": False, "error": "no backup found for this device"})
+            return
+        self._send_backup(candidates[0])
+
+    def _send_backup(self, path: Path):
+        try:
+            raw = path.read_bytes()
+        except Exception as exc:
+            self._json(500, {"ok": False, "error": str(exc)})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Content-Disposition", f'attachment; filename="{path.name}"')
+        self.end_headers()
+        self.wfile.write(raw)
 
     def do_POST(self):
         parsed = urlparse(self.path)

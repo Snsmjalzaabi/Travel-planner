@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:sqflite/sqflite.dart';
 import '../core/app_settings.dart';
 import '../core/database_helper.dart';
+import 'soft_delete.dart';
 
 /// Real, simple sync for personal Pi use.
 ///
@@ -10,21 +12,6 @@ import '../core/database_helper.dart';
 /// phone/app -> Pi backup. It fixes the old UI issue where sync only
 /// displayed a fake "started" message.
 class LocalPiSyncService {
-  static const _tables = [
-    'trips',
-    'hotels',
-    'flights',
-    'itinerary_days',
-    'itinerary_activities',
-    'expenses',
-    'packing_items',
-    'passports',
-    'visas',
-    'notes',
-    'tasks',
-    'app_files',
-  ];
-
   final AppSettings settings;
   final DatabaseHelper dbHelper;
 
@@ -46,7 +33,8 @@ class LocalPiSyncService {
 
     var totalRecords = 0;
     final tablesPayload = payload['tables'] as Map<String, List<Map<String, dynamic>>>;
-    for (final table in _tables) {
+    for (final table in DatabaseHelper.syncTables) {
+      // Include tombstoned rows so deletions propagate on restore.
       final rows = await db.query(table);
       tablesPayload[table] = rows;
       totalRecords += rows.length;
@@ -87,6 +75,158 @@ class LocalPiSyncService {
     }
   }
 
+  /// Fetches the Pi's latest backup for this device.
+  Future<LocalSyncResult> downloadLatest() async {
+    if (settings.piAddress.trim().isEmpty) {
+      return LocalSyncResult.failure('Pi IP address is empty.');
+    }
+    try {
+      final uri = Uri.parse('$baseUrl/sync/download')
+          .replace(queryParameters: {'device_id': settings.deviceId});
+      final response = await http.get(
+        uri,
+        headers: {
+          'X-Device-ID': settings.deviceId,
+          if (settings.syncPassword.isNotEmpty) 'X-Sync-Password': settings.syncPassword,
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 404) {
+        return LocalSyncResult.failure(
+          'No backup on the Pi yet for this device. Run Sync Now once first.',
+        );
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return LocalSyncResult.failure('Pi returned ${response.statusCode}.');
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final tables = (decoded['tables'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, (v as List).cast<Map<String, dynamic>>())) ??
+          <String, List<Map<String, dynamic>>>{};
+
+      return LocalSyncResult(
+        success: true,
+        message: 'Downloaded ${tables.values.fold<int>(0, (a, b) => a + b.length)} records from Pi.',
+        backupTables: tables,
+        backupTimestamp: decoded['sent_at'] as String?,
+      );
+    } catch (e) {
+      return LocalSyncResult.failure('Could not reach Pi at $baseUrl.\n\n$e');
+    }
+  }
+
+  /// Merges a downloaded backup into the local database.
+  ///
+  /// Rules, in order of precedence:
+  ///  - a tombstone in either copy wins (the row stays deleted)
+  ///  - otherwise the newer `updated_at`/`created_at` wins
+  ///  - local-only rows are kept, never deleted
+  Future<LocalSyncResult> restoreBackup(Map<String, List<Map<String, dynamic>>> backup) async {
+    final db = await dbHelper.database;
+    final report = <String>[];
+    var written = 0;
+    var tombstones = 0;
+
+    for (final table in DatabaseHelper.syncTables) {
+      final incoming = backup[table];
+      if (incoming == null) continue;
+
+      for (final remote in incoming) {
+        final row = Map<String, dynamic>.from(remote);
+
+        // Local tombstone beats anything the Pi still has.
+        final localRow = await _findLocal(db, table, row['id']);
+        final localDeleted = localRow != null && isTombstone(localRow);
+
+        if (isTombstone(row)) {
+          tombstones++;
+          if (localRow == null) {
+            await _insertRaw(db, table, row);
+          } else {
+            await db.update(table, {'deleted_at': row['deleted_at']}, where: 'id = ?', whereArgs: [row['id']]);
+          }
+          continue;
+        }
+
+        if (localDeleted) continue; // never resurrect
+        if (localRow == null) {
+          await _insertRaw(db, table, row);
+          written++;
+          continue;
+        }
+        if (remoteIsNewer(row, localRow)) {
+          await db.update(table, row, where: 'id = ?', whereArgs: [row['id']]);
+          written++;
+        }
+      }
+      report.add('$table: ${incoming.length} from Pi');
+    }
+
+    await _log('restore', 'Pi', written, null);
+    return LocalSyncResult(
+      success: true,
+      message: 'Restored $written updated records'
+          '${tombstones > 0 ? ', kept $tombstones deletions' : ''}.',
+      recordCount: written,
+    );
+  }
+
+  /// Replaces everything local with the backup. Destructive by design.
+  Future<LocalSyncResult> replaceFromBackup(Map<String, List<Map<String, dynamic>>> backup) async {
+    final db = await dbHelper.database;
+    var written = 0;
+    for (final table in DatabaseHelper.syncTables) {
+      final incoming = backup[table];
+      if (incoming == null) continue;
+      await db.delete(table);
+      for (final row in incoming) {
+        await _insertRaw(db, table, Map<String, dynamic>.from(row));
+        written++;
+      }
+    }
+    await _log('restore', 'Pi (replace)', written, null);
+    return LocalSyncResult(success: true, message: 'Replaced local data with $written records from Pi.', recordCount: written);
+  }
+
+  /// Raw insert that tolerates columns the current build does not know about,
+  /// so an older/newer Pi backup can never crash a restore.
+  Future<void> _insertRaw(Database db, String table, Map<String, dynamic> row) async {
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    final allowed = columns.map((c) => c['name'] as String).toSet();
+    final filtered = <String, dynamic>{};
+    row.forEach((k, v) {
+      if (allowed.contains(k)) filtered[k] = v;
+    });
+    await db.insert(table, filtered, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, dynamic>?> _findLocal(Database db, String table, Object? id) async {
+    if (id == null) return null;
+    final rows = await db.query(table, where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<void> _log(String direction, String module, int records, String? error) async {
+    final db = await dbHelper.database;
+    await db.insert('sync_log', {
+      'device_id': settings.deviceId,
+      'direction': direction,
+      'module': module,
+      'action': direction == 'upload' ? 'backup' : 'restore',
+      'record_id': 0,
+      'table_name': module,
+      'record_data': null,
+      'error': error,
+      'synced_at': DateTime.now().toIso8601String(),
+      'server_response_time': null,
+      'success': error == null ? 1 : 0,
+      'retry_count': 0,
+      'last_retry': null,
+      'sync_batch_id': null,
+    });
+  }
+
   String _shortBody(String body) {
     final clean = body.trim().replaceAll('\n', ' ');
     if (clean.length <= 160) return clean;
@@ -100,11 +240,17 @@ class LocalSyncResult {
   final int recordCount;
   final DateTime? syncedAt;
 
+  /// Populated by [LocalPiSyncService.downloadLatest].
+  final Map<String, List<Map<String, dynamic>>>? backupTables;
+  final String? backupTimestamp;
+
   const LocalSyncResult({
     required this.success,
     required this.message,
     this.recordCount = 0,
     this.syncedAt,
+    this.backupTables,
+    this.backupTimestamp,
   });
 
   factory LocalSyncResult.failure(String message) {

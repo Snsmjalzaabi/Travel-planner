@@ -27,7 +27,7 @@ class _TripsScreenState extends State<TripsScreen> {
 
   Future<void> _loadTrips() async {
     final db = await DatabaseHelper().database;
-    final expenseRows = await db.query('expenses', orderBy: 'created_at DESC');
+    final expenseRows = await db.query('expenses', where: 'deleted_at IS NULL', orderBy: 'created_at DESC');
     final all = await DatabaseHelper().loadTripsWithRelations();
     final trips = all.where((t) => _matchesStatus(t.status)).toList();
     final expenses = expenseRows.map(Expense.fromMap).toList();

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../core/database_helper.dart';
+import '../services/soft_delete.dart';
 
 /// Passports and visas in one place. Replaces the read-only list that
 /// previously existed in the More tab.
@@ -30,14 +31,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Future<void> _load() async {
     final db = await DatabaseHelper().database;
-    final passportRows = await db.query('passports', orderBy: 'expiry_date ASC');
+    final passportRows = await db.query('passports', where: 'deleted_at IS NULL', orderBy: 'expiry_date ASC');
     final visasByPassport = <int, List<Visa>>{};
     for (final row in passportRows) {
       final pid = row['id'] as int;
-      final visaRows = await db.query('visas', where: 'passport_id = ?', whereArgs: [pid], orderBy: 'expiry_date ASC');
+      final visaRows = await db.query('visas', where: 'passport_id = ? AND deleted_at IS NULL', whereArgs: [pid], orderBy: 'expiry_date ASC');
       visasByPassport[pid] = visaRows.map(Visa.fromMap).toList();
     }
-    final loose = (await db.query('visas', where: 'passport_id IS NULL', orderBy: 'expiry_date ASC')).map(Visa.fromMap).toList();
+    final loose = (await db.query('visas', where: 'passport_id IS NULL AND deleted_at IS NULL', orderBy: 'expiry_date ASC')).map(Visa.fromMap).toList();
 
     if (!mounted) return;
     setState(() {
@@ -762,15 +763,21 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     final ok = await _confirm('Delete ${p.country} passport?');
     if (!ok || p.id == null) return;
     final db = await DatabaseHelper().database;
-    await db.delete('visas', where: 'passport_id = ?', whereArgs: [p.id]);
-    await db.delete('passports', where: 'id = ?', whereArgs: [p.id]);
+    // Soft delete so a restore never resurrects a passport the user removed.
+    await softDelete(db, 'visas', p.id!);
+    final visaRows = await db.query('visas', where: 'passport_id = ?', whereArgs: [p.id]);
+    for (final v in visaRows) {
+      if (v['id'] is int) await softDelete(db, 'visas', v['id'] as int);
+    }
+    await softDelete(db, 'passports', p.id!);
     await _load();
   }
 
   Future<void> _deleteVisa(Visa v) async {
     final ok = await _confirm('Delete ${v.country} visa?');
     if (!ok || v.id == null) return;
-    await DatabaseHelper().delete('visas', where: 'id = ?', whereArgs: [v.id]);
+    final db = await DatabaseHelper().database;
+    await softDelete(db, 'visas', v.id!);
     await _load();
   }
 

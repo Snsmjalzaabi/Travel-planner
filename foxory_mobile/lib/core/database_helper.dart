@@ -25,7 +25,7 @@ class DatabaseHelper {
         join((await getApplicationDocumentsDirectory()).path, 'foxory.db');
     return openDatabase(
       dbPath,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onOpen: (db) async => _ensureSchema(db),
@@ -36,10 +36,31 @@ class DatabaseHelper {
     await _ensureSchema(db);
   }
 
+  /// Tables that take part in sync. Order matters: parents before children,
+  /// so foreign keys (hotels -> trips) resolve.
+  static const syncTables = <String>[
+    'trips',
+    'hotels',
+    'flights',
+    'itinerary_days',
+    'itinerary_activities',
+    'expenses',
+    'packing_items',
+    'passports',
+    'visas',
+    'notes',
+    'tasks',
+    'app_files',
+  ];
+
   Future<void> _ensureSchema(Database db) async {
     await _addColumnIfMissing(db, 'trips', 'transport_label', 'TEXT DEFAULT \'Flight\'');
     await _addColumnIfMissing(db, 'trips', 'trip_type', 'TEXT DEFAULT \'friends\'');
     await _addColumnIfMissing(db, 'trips', 'destination_image', 'TEXT');
+    // Soft deletes so a restore never resurrects a row the user removed.
+    for (final table in syncTables) {
+      await _addColumnIfMissing(db, table, 'deleted_at', 'TEXT');
+    }
   }
 
   Future<void> _addColumnIfMissing(
@@ -541,23 +562,23 @@ class DatabaseHelper {
 
     final db = await database;
 
-    final hotels = (await db.query('hotels', where: 'trip_id = ?', whereArgs: [id], orderBy: 'check_in ASC'))
+    final hotels = (await db.query('hotels', where: 'trip_id = ? AND deleted_at IS NULL', whereArgs: [id], orderBy: 'check_in ASC'))
         .map(Hotel.fromMap)
         .toList();
 
-    final flights = (await db.query('flights', where: 'trip_id = ?', whereArgs: [id], orderBy: 'departure ASC'))
+    final flights = (await db.query('flights', where: 'trip_id = ? AND deleted_at IS NULL', whereArgs: [id], orderBy: 'departure ASC'))
         .map(Flight.fromMap)
         .toList();
 
-    final days = (await db.query('itinerary_days', where: 'trip_id = ?', whereArgs: [id], orderBy: 'day_number ASC'))
+    final days = (await db.query('itinerary_days', where: 'trip_id = ? AND deleted_at IS NULL', whereArgs: [id], orderBy: 'day_number ASC'))
         .map(ItineraryDay.fromMap)
         .toList();
 
-    final activities = (await db.query('itinerary_activities', where: 'trip_id = ?', whereArgs: [id], orderBy: 'start_time ASC'))
+    final activities = (await db.query('itinerary_activities', where: 'trip_id = ? AND deleted_at IS NULL', whereArgs: [id], orderBy: 'start_time ASC'))
         .map(ItineraryActivity.fromMap)
         .toList();
 
-    final packing = (await db.query('packing_items', where: 'trip_id = ?', whereArgs: [id], orderBy: 'category ASC, name ASC'))
+    final packing = (await db.query('packing_items', where: 'trip_id = ? AND deleted_at IS NULL', whereArgs: [id], orderBy: 'category ASC, name ASC'))
         .map(PackingItem.fromMap)
         .toList();
 
@@ -573,7 +594,11 @@ class DatabaseHelper {
   /// Loads every trip with relations attached.
   Future<List<Trip>> loadTripsWithRelations({String? orderBy = 'departure ASC'}) async {
     final db = await database;
-    final rows = await db.query('trips', orderBy: orderBy);
+    final rows = await db.query(
+      'trips',
+      where: 'deleted_at IS NULL',
+      orderBy: orderBy,
+    );
     final trips = rows.map(Trip.fromMap).toList();
     return [for (final trip in trips) await loadTripRelations(trip)];
   }
