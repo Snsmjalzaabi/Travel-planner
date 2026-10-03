@@ -794,17 +794,11 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
     );
   }
 
+  /// Deterministic Unsplash image per destination. Falls back to a generic
+  /// city photo so a trip always has something to show.
   String _buildFallbackImage() {
-    // Generate a deterministic-ish Unsplash URL based on destination country name
-    final name = _destCtrl.text.trim().toLowerCase().replaceAll(' ', '-').replaceAll(RegExp(r'[^a-z0-9-]'), '');
-    if (name.isEmpty) return '';
-    // Use Ambience image from Unsplash
-    return 'https://images.unsplash.com/photo-(\${_getImageIdFor(name)})?w=800&q=80';
-  }
-
-  String _getImageIdFor(String name) {
-    // Hash-like fallback to pick a stable image per name
-    final hashes = {
+    final name = _destCtrl.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '-');
+    const hashes = <String, String>{
       'tokyo': '1540959733-f16614c8edf0',
       'paris': '1502602898657-3e91760cbb34',
       'london': '1513635269975-57669614be8c',
@@ -814,10 +808,22 @@ class _CreateTripDialogState extends State<CreateTripDialog> {
       'singapore': '1566403303480-66d178c50455',
       'istanbul': '1529274662728-490d81076687',
       'sydney': '1506973320985-6a0f6ea6d0b9',
-      'barcelona': '1583417319058-ip5a242c7b47',
+      'barcelona': '1539037116277-4db20889f2d6',
+      'tashkent': '1548013146-3e4e748b234b',
+      'samarkand': '1548013146-3e4e748b234b',
+      'khiva': '1548013146-3e4e748b234b',
     };
-    return hashes[name] ?? '1502602898657-3e91760cbb34';
+    final key = name.isEmpty ? 'paris' : (hashes[name] != null ? name : _cityKey(name));
+    final id = hashes[key] ?? hashes['paris']!;
+    return 'https://images.unsplash.com/photo-$id?w=800&q=80';
   }
+
+  /// Matches 'new-york' style keys, falling back to the first word.
+  String _cityKey(String slug) {
+    final first = slug.split('-').first;
+    return first.isEmpty ? 'paris' : first;
+  }
+
 }
 
 class InputContainer extends StatelessWidget {

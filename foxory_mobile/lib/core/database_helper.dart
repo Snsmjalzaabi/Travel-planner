@@ -375,23 +375,7 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS "task_projects" (
-        "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-        "name" TEXT NOT NULL,
-        "description" TEXT,
-        "color" TEXT,
-        "icon" TEXT,
-        "order_index" INTEGER DEFAULT 0,
-        "is_active" INTEGER DEFAULT 1,
-        "created_at" TEXT NOT NULL,
-        "updated_at" TEXT NOT NULL,
-        "sync_status" INTEGER DEFAULT 0,
-        "sync_enabled" INTEGER DEFAULT 1
-      )
-    ''');
-
-    await db.execute('''
+        await db.execute('''
       CREATE TABLE IF NOT EXISTS "tasks" (
         "id" INTEGER PRIMARY KEY AUTOINCREMENT,
         "project_id" INTEGER,
@@ -451,23 +435,7 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS "folders" (
-        "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-        "name" TEXT NOT NULL,
-        "parent_id" TEXT,
-        "color" TEXT,
-        "icon" TEXT,
-        "order_index" INTEGER DEFAULT 0,
-        "file_count" INTEGER DEFAULT 0,
-        "created_at" TEXT NOT NULL,
-        "updated_at" TEXT NOT NULL,
-        "sync_status" INTEGER DEFAULT 0,
-        "sync_enabled" INTEGER DEFAULT 1
-      )
-    ''');
-
-    await db.execute('''
+        await db.execute('''
       CREATE TABLE IF NOT EXISTS "sync_log" (
         "id" INTEGER PRIMARY KEY AUTOINCREMENT,
         "device_id" TEXT NOT NULL,
@@ -487,15 +455,7 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS "app_settings" (
-        "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-        "key" TEXT NOT NULL UNIQUE,
-        "value" TEXT NOT NULL,
-        "updated_at" TEXT NOT NULL
-      )
-    ''');
-  }
+      }
 
   // Generic CRUD operations
   Future<int> insert(String table, Map<String, dynamic> data) async {
