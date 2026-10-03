@@ -9,6 +9,7 @@ import '../services/local_pi_sync_service.dart';
 import 'recommendations_screen.dart';
 import 'documents_screen.dart';
 import 'notification_settings_screen.dart';
+import 'tickets_screen.dart';
 import 'expense_form_sheet.dart';
 
 class MoreScreen extends StatefulWidget {
@@ -299,6 +300,17 @@ class _MoreScreenState extends State<MoreScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.confirmation_number_outlined),
+          title: const Text('Tickets'),
+          subtitle: const Text('Flights and hotels with booking references'),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TicketsScreen()),
             );
           },
         ),
