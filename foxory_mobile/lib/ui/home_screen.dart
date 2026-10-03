@@ -4,6 +4,11 @@ import '../models/models.dart';
 import '../core/database_helper.dart';
 import '../widgets/quick_capture_widget.dart';
 import '../services/notification_service.dart';
+import '../services/soft_delete.dart';
+import '../services/currency_service.dart';
+import 'trip_detail_sheet.dart';
+import 'expense_form_sheet.dart';
+import 'documents_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Trip> _upcomingTrips = [];
   List<Trip> _recentTrips = [];
   List<Expense> _recentExpenses = [];
+  List<Expense> _allExpenses = [];
   List<Task> _pendingTasks = [];
   List<Passport> _passports = [];
   bool _isLoading = true;
@@ -51,19 +57,35 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     final trips = await db.query(
       'trips',
-      where: 'departure >= ? AND status != ?',
+      where: 'departure >= ? AND status != ? AND deleted_at IS NULL',
       whereArgs: [now.toIso8601String(), 'COMPLETED'],
       orderBy: 'departure ASC',
       limit: 3,
     );
     _upcomingTrips = trips.map((m) => Trip.fromMap(m)).toList();
-    final trips2 = await db.query('trips', orderBy: 'updated_at DESC', limit: 5);
+    final trips2 = await db.query(
+      'trips',
+      where: 'deleted_at IS NULL',
+      orderBy: 'updated_at DESC',
+      limit: 5,
+    );
     _recentTrips = trips2.map((m) => Trip.fromMap(m)).toList();
-    final exp = await db.query('expenses', orderBy: 'date DESC', limit: 5);
+    final exp = await db.query(
+      'expenses',
+      where: 'deleted_at IS NULL',
+      orderBy: 'date DESC',
+      limit: 5,
+    );
     _recentExpenses = exp.map((m) => Expense.fromMap(m)).toList();
+    // Full set for the budget panel, which must not miss older expenses.
+    final allExp = await db.query('expenses', where: 'deleted_at IS NULL', orderBy: 'date DESC');
+    _allExpenses = allExp.map((m) => Expense.fromMap(m)).toList();
     final tasks = await db.query(
       'tasks',
-      where: "status = 'todo' OR (status = 'in_progress' AND due_date <= ?)",
+      // status is a TaskStatus enum index: 0 todo, 1 in progress, 2 done.
+      // This used to compare against the strings 'todo'/'in_progress', which
+      // never matched, so the pending task list was always empty.
+      where: '(status IN (0, 1)) AND deleted_at IS NULL AND (due_date IS NULL OR due_date <= ?)',
       whereArgs: [now.toIso8601String()],
       orderBy: 'priority DESC, due_date ASC',
       limit: 5,
@@ -71,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _pendingTasks = tasks.map((m) => Task.fromMap(m)).toList();
     final passports = await db.query(
       'passports',
-      where: 'expiring_soon = 1 OR expired = 1',
+      where: '(expiring_soon = 1 OR expired = 1) AND deleted_at IS NULL',
       limit: 3,
     );
     _passports = passports.map((m) => Passport.fromMap(m)).toList();
@@ -318,7 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: InkWell(
-        onTap: () {},
+        onTap: () => _showTaskSheet(task),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -343,7 +365,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              Checkbox(value: task.isCompleted, onChanged: (v) {}),
+              Checkbox(
+                value: task.isCompleted,
+                onChanged: (v) => _toggleTask(task, v == true),
+              ),
             ],
           ),
         ),
@@ -356,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: InkWell(
-        onTap: () {},
+        onTap: () => _editExpense(expense),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -395,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       color: accent.withValues(alpha: 0.08),
       child: InkWell(
-        onTap: () {},
+        onTap: () => _openDocuments(),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -437,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: InkWell(
-        onTap: () {},
+        onTap: () => _showTripDetail(trip),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -580,15 +605,117 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${symbols[currency] ?? currency}${amount.toStringAsFixed(0)}';
   }
 
-  void _showTripDetail(Trip trip) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Trip detail — coming soon')),
+  Future<void> _openDocuments() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DocumentsScreen()),
+    );
+    if (mounted) await _loadData();
+  }
+
+  Future<void> _editExpense(Expense expense) async {
+    final saved = await showExpenseSheet(context, expense: expense);
+    if (saved) await _loadData();
+  }
+
+  Future<void> _toggleTask(Task task, bool done) async {
+    final db = await DatabaseHelper().database;
+    await db.update(
+      'tasks',
+      {
+        'status': done ? 1 : 0,
+        'completed_at': done ? DateTime.now().toIso8601String() : null,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [task.id],
+    );
+    await _loadData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(done ? '${task.title} completed' : '${task.title} reopened')),
+      );
+    }
+  }
+
+  void _showTaskSheet(Task task) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(task.title, style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            if (task.dueDate != null) ...[
+              const SizedBox(height: 6),
+              Text('Due ${DateFormat('MMM d, y').format(task.dueDate!)}',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: task.isOverdue ? Colors.red : Colors.grey)),
+            ],
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _softDeleteRow('tasks', task.id, '${task.title} deleted');
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Delete'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _toggleTask(task, !task.isCompleted);
+                    },
+                    child: Text(task.isCompleted ? 'Reopen' : 'Complete'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 
+  Future<void> _softDeleteRow(String table, int? id, String message) async {
+    if (id == null) return;
+    final db = await DatabaseHelper().database;
+    await softDelete(db, table, id);
+    await _loadData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  void _showTripDetail(Trip trip) {
+    showTripDetailSheet(
+      context,
+      trip,
+      expenses: _allExpenses,
+      onChanged: _loadData,
+      onEdit: () => _editTrip(trip),
+    );
+  }
+
+  Future<void> _editTrip(Trip trip) async {
+    final result = await showTripEditSheet(context, trip);
+    if (result) await _loadData();
+  }
+
   void _deleteTrip(Trip trip) async {
-    final db = DatabaseHelper();
-    await db.delete('trips', where: 'id = ?', whereArgs: [trip.id]);
+    final conn = await DatabaseHelper().database;
+    // Soft delete so a Pi restore cannot bring this trip back.
+    await softDelete(conn, 'trips', trip.id!);
     _loadData();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -597,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _handleQuickCapture(String type, {String? text, List<String>? tags}) {
+  Future<void> _handleQuickCapture(String type, {String? text, List<String>? tags}) async {
     final db = DatabaseHelper();
     switch (type) {
       case 'note':
@@ -644,16 +771,21 @@ class _HomeScreenState extends State<HomeScreen> {
           final parts = text.split(RegExp(r'\s+'));
           final amount = double.tryParse(parts[0]) ?? 0;
           final desc = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+          // Without base_amount this expense was invisible to budget maths.
+          final baseAmount = await CurrencyService().convert(amount, 'AED', 'USD');
+          final now = DateTime.now().toIso8601String();
           db.insert('expenses', {
             'title': desc,
             'category': 'other',
             'amount': amount,
             'currency': 'AED',
-            'date': DateTime.now().toIso8601String(),
+            'base_amount': baseAmount,
+            'date': now,
             'merchant': '',
-            'notes': '',
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
+            'notes': 'Added from quick capture',
+            'created_at': now,
+            'updated_at': now,
+            'sync_enabled': 1,
           });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense logged')));

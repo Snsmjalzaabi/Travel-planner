@@ -315,20 +315,20 @@ class _MoreScreenState extends State<MoreScreen> {
         ListTile(
           leading: const Icon(Icons.folder_outlined),
           title: const Text('File Storage'),
-          subtitle: const Text('Manage files stored on this device'),
-          onTap: () {},
+          subtitle: Text('${_files.length} file${_files.length == 1 ? '' : 's'} stored on this device'),
+          onTap: () => _showFileManager(),
         ),
         ListTile(
           leading: const Icon(Icons.person_outline),
           title: const Text('Profile'),
-          subtitle: const Text('Your device ID and preferences'),
-          onTap: () {},
+          subtitle: Text('Device ID ${_shortDeviceId()}'),
+          onTap: () => _showProfile(),
         ),
         ListTile(
           leading: const Icon(Icons.help_outline),
           title: const Text('Help & About'),
           subtitle: const Text('Version 1.0.0'),
-          onTap: () {},
+          onTap: () => _showAbout(),
         ),
       ],
     );
@@ -535,6 +535,103 @@ class _MoreScreenState extends State<MoreScreen> {
       SnackBar(
         content: Text(result.message),
         backgroundColor: result.success ? Colors.green : Colors.orange,
+      ),
+    );
+  }
+
+  String _shortDeviceId() {
+    final settings = AppSettings();
+    final id = settings.deviceId;
+    if (id.isEmpty) return 'not set';
+    return id.length <= 12 ? id : '${id.substring(0, 8)}...';
+  }
+
+  void _showProfile() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final settings = AppSettings();
+        return AlertDialog(
+          title: const Text('Profile'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Device ID', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text(
+                settings.deviceId.isEmpty ? 'Not set' : settings.deviceId,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Sync backups are stored per device ID on the Pi. Keep this if you ever restore onto a new phone.',
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              const Text('Theme', style: TextStyle(fontWeight: FontWeight.w600)),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Dark mode'),
+                value: settings.darkMode,
+                onChanged: (_) => setState(() {}),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAbout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Foxory Travel & Life'),
+        content: const Text(
+          'Version 1.0.0\n\n'
+          'Your trips, documents, expenses and plans. Works offline and backs up to your Raspberry Pi.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  void _showFileManager() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        builder: (sheetCtx, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text('Files on this device', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            if (_files.isEmpty)
+              Text(
+                'No files yet.',
+                style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+              )
+            else
+              ..._files.map(
+                (f) => ListTile(
+                  leading: const Icon(Icons.insert_drive_file_outlined),
+                  title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(DateFormat('MMM d, y').format(f.createdAt)),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
