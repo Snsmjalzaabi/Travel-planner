@@ -7,6 +7,7 @@ import '../core/database_helper.dart';
 import 'hotel_booking_form.dart';
 import 'create_trip_dialog.dart';
 import 'trip_budget_panel.dart';
+import 'budget_breakdown_screen.dart';
 import '../services/soft_delete.dart';
 
 class PlannerScreen extends StatefulWidget {
@@ -307,8 +308,20 @@ class _PlannerScreenState extends State<PlannerScreen> {
             allExpenses: _expenses,
           ),
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => BudgetBreakdownScreen(trip: t)),
+              ),
+              icon: const Icon(Icons.pie_chart_outline, size: 18),
+              label: const Text('Split budget by category'),
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(
-            'Expenses tagged to this trip count towards its budget. Add them from the Expenses tab.',
+            'Set aside what you are holding for transport, food and the rest, and see what each has left.',
             style: GoogleFonts.inter(fontSize: 12, color: cs.onSurface.withValues(alpha: 0.6)),
           ),
         ];

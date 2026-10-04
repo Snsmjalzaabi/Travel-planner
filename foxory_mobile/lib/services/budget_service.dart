@@ -60,6 +60,47 @@ class BudgetBreakdown {
   });
 }
 
+/// One category's slice of a trip budget.
+class CategoryBudget {
+  final String category;
+
+  /// What the user set aside, in the trip's currency.
+  final double allocated;
+
+  /// What has actually been spent, in the trip's currency.
+  final double spent;
+
+  CategoryBudget({
+    required this.category,
+    required this.allocated,
+    required this.spent,
+  });
+
+  double get remaining => allocated - spent;
+  bool get hasAllocation => allocated > 0;
+  bool get isOver => hasAllocation && spent > allocated;
+
+  /// 0..1 against the allocation. Null when nothing was set aside.
+  double? get usedFraction {
+    if (!hasAllocation) return null;
+    return spent / allocated;
+  }
+
+  /// True when money was spent in a category nobody budgeted for.
+  bool get unbudgeted => !hasAllocation && spent > 0;
+
+  /// Fraction of the *total* allocated that this slice represents.
+  double shareOf(double totalAllocated) =>
+      totalAllocated > 0 ? allocated / totalAllocated : 0;
+}
+
+/// A category that has spending but no allocation set for it.
+class UnbudgetedSpend {
+  final String category;
+  final double spent;
+  const UnbudgetedSpend(this.category, this.spent);
+}
+
 class BudgetService {
   const BudgetService();
 
@@ -117,6 +158,42 @@ class BudgetService {
       hasBudget: hasBudget,
     );
   }
+
+  /// Builds a per-category breakdown of [trip], combining the allocations the
+  /// user set in [allocations] with what has actually been spent.
+  ///
+  /// Returns every category that either has an allocation or has spending, so
+  /// nothing is silently dropped: categories with spending but no allocation
+  /// come back with [CategoryBudget.unbudgeted] set.
+  List<CategoryBudget> categoryBreakdown(
+    Trip trip,
+    BudgetBreakdown totals,
+    Map<String, double> allocations,
+  ) {
+    final names = <String>{...allocations.keys, ...totals.byCategory.keys};
+    return names.map((name) {
+      final entry = CategoryBudget(
+        category: name,
+        allocated: allocations[name] ?? 0,
+        spent: totals.byCategory[name] ?? 0,
+      );
+      return entry;
+    }).toList()
+      ..sort((a, b) {
+        // Allocations first, then biggest spend.
+        if (a.hasAllocation != b.hasAllocation) return a.hasAllocation ? -1 : 1;
+        final byAllocated = b.allocated.compareTo(a.allocated);
+        return byAllocated != 0 ? byAllocated : b.spent.compareTo(a.spent);
+      });
+  }
+
+  /// Total the user has assigned across categories.
+  double totalAllocated(Map<String, double> allocations) =>
+      allocations.values.fold<double>(0, (a, b) => a + b);
+
+  /// Money in the trip budget that has not been assigned to any category.
+  double unassigned(BudgetBreakdown totals, Map<String, double> allocations) =>
+      totals.budget - totalAllocated(allocations);
 
   /// Sum of every expense in the database, ignoring trip association.
   /// Used for the overall dashboard figure.

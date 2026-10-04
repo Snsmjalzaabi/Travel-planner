@@ -25,7 +25,7 @@ class DatabaseHelper {
         join((await getApplicationDocumentsDirectory()).path, 'foxory.db');
     return openDatabase(
       dbPath,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onOpen: (db) async => _ensureSchema(db),
@@ -45,6 +45,7 @@ class DatabaseHelper {
     'itinerary_days',
     'itinerary_activities',
     'expenses',
+    'trip_budgets',
     'packing_items',
     'passports',
     'visas',
@@ -61,6 +62,20 @@ class DatabaseHelper {
     await _addColumnIfMissing(db, 'trips', 'trip_type', 'TEXT DEFAULT \'friends\'');
     await _addColumnIfMissing(db, 'trips', 'destination_image', 'TEXT');
     // Attachments: link a file to whatever it belongs to (flight, hotel...).
+    await _createTableIfMissing(db, 'trip_budgets', '''
+      CREATE TABLE IF NOT EXISTS "trip_budgets" (
+        "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+        "trip_id" INTEGER NOT NULL,
+        "category" TEXT NOT NULL,
+        "allocated" REAL NOT NULL DEFAULT 0,
+        "note" TEXT DEFAULT '',
+        "created_at" TEXT NOT NULL,
+        "updated_at" TEXT NOT NULL,
+        "sync_enabled" INTEGER DEFAULT 1,
+        "sync_status" INTEGER DEFAULT 0
+      )''');
+    await _addColumnIfMissing(db, 'trip_budgets', 'deleted_at', 'TEXT');
+
     await _addColumnIfMissing(db, 'app_files', 'linked_type', 'TEXT');
     await _addColumnIfMissing(db, 'app_files', 'linked_id', 'INTEGER');
 
@@ -71,6 +86,17 @@ class DatabaseHelper {
       await _addColumnIfMissing(db, table, 'deleted_at', 'TEXT');
     }
     await _addColumnIfMissing(db, 'app_files', 'deleted_at', 'TEXT');
+  }
+
+  /// Creates a table for existing installs that predate it.
+  Future<void> _createTableIfMissing(Database db, String name, String ddl) async {
+    final existing = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+      [name],
+    );
+    if (existing.isEmpty) {
+      await db.execute(ddl);
+    }
   }
 
   Future<void> _addColumnIfMissing(
@@ -291,6 +317,20 @@ class DatabaseHelper {
         "updated_at" TEXT NOT NULL,
         "sync_status" INTEGER DEFAULT 0,
         "sync_enabled" INTEGER DEFAULT 1
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS "trip_budgets" (
+        "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+        "trip_id" INTEGER NOT NULL,
+        "category" TEXT NOT NULL,
+        "allocated" REAL NOT NULL DEFAULT 0,
+        "note" TEXT DEFAULT '',
+        "created_at" TEXT NOT NULL,
+        "updated_at" TEXT NOT NULL,
+        "sync_enabled" INTEGER DEFAULT 1,
+        "sync_status" INTEGER DEFAULT 0
       )
     ''');
 
@@ -523,6 +563,69 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getHotelsForTrip(int tripId) async {
     final db = await database;
     return db.query('hotels', where: 'trip_id = ?', whereArgs: [tripId], orderBy: 'check_in DESC');
+  }
+
+  /// Per-category budget allocations for a trip, keyed by category name.
+  Future<Map<String, double>> getBudgetAllocations(int tripId) async {
+    final db = await database;
+    final rows = await db.query(
+      'trip_budgets',
+      where: 'trip_id = ? AND deleted_at IS NULL',
+      whereArgs: [tripId],
+      orderBy: 'category ASC',
+    );
+    return {
+      for (final r in rows)
+        (r['category'] as String): (r['allocated'] as num?)?.toDouble() ?? 0,
+    };
+  }
+
+  /// Sets one category's allocation. Passing 0 clears it.
+  Future<void> setBudgetAllocation(int tripId, String category, double amount) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    final existing = await db.query(
+      'trip_budgets',
+      where: 'trip_id = ? AND category = ?',
+      whereArgs: [tripId, category],
+      limit: 1,
+    );
+
+    if (amount <= 0) {
+      if (existing.isEmpty) return;
+      // Soft delete so the removal syncs rather than silently vanishing.
+      await db.update(
+        'trip_budgets',
+        {'deleted_at': now, 'updated_at': now},
+        where: 'id = ?',
+        whereArgs: [existing.first['id']],
+      );
+      return;
+    }
+
+    if (existing.isEmpty) {
+      await db.insert('trip_budgets', {
+        'trip_id': tripId,
+        'category': category,
+        'allocated': amount,
+        'note': '',
+        'created_at': now,
+        'updated_at': now,
+        'sync_enabled': 1,
+        'sync_status': 0,
+      });
+    } else {
+      await db.update(
+        'trip_budgets',
+        {
+          'allocated': amount,
+          'updated_at': now,
+          'deleted_at': null,
+        },
+        where: 'id = ?',
+        whereArgs: [existing.first['id']],
+      );
+    }
   }
 
   /// Loads a trip with all of its related rows attached (hotels, flights,

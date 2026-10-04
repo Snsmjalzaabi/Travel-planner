@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/recommendation_service.dart';
 import 'trip_budget_panel.dart';
+import 'budget_breakdown_screen.dart';
 import 'attachment_strip.dart';
 import '../core/database_helper.dart';
 import 'create_trip_dialog.dart';
@@ -131,6 +132,21 @@ void showTripDetailSheet(
               key: ValueKey('budget-${trip.id}-${expenses.length}'),
               trip: trip,
               allExpenses: expenses,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => BudgetBreakdownScreen(trip: trip)),
+                  );
+                },
+                icon: const Icon(Icons.pie_chart_outline, size: 18),
+                label: const Text('Split budget by category'),
+              ),
             ),
             if (trip.attractions.isNotEmpty || trip.notes.isNotEmpty) ...[
               const SizedBox(height: 14),
