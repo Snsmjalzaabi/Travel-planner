@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/recommendation_service.dart';
 import 'trip_budget_panel.dart';
+import 'attachment_strip.dart';
 import '../core/database_helper.dart';
 import 'create_trip_dialog.dart';
 
@@ -116,6 +117,15 @@ void showTripDetailSheet(
                 ],
               ),
             ),
+            if (trip.id != null) ...[
+              const SizedBox(height: 16),
+              AttachmentStrip(
+                key: ValueKey('trip-${trip.id}'),
+                linkedType: 'trip',
+                linkedId: trip.id!,
+                title: 'Trip confirmations',
+              ),
+            ],
             const SizedBox(height: 16),
             TripBudgetPanel(
               key: ValueKey('budget-${trip.id}-${expenses.length}'),

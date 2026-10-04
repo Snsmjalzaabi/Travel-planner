@@ -10,6 +10,7 @@ import 'recommendations_screen.dart';
 import 'documents_screen.dart';
 import 'notification_settings_screen.dart';
 import 'tickets_screen.dart';
+import '../services/attachment_service.dart';
 import 'expense_form_sheet.dart';
 
 class MoreScreen extends StatefulWidget {
@@ -626,7 +627,10 @@ class _MoreScreenState extends State<MoreScreen> {
     );
   }
 
-  void _showFileManager() {
+  Future<void> _showFileManager() async {
+    final files = await AttachmentService().listAll();
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -640,18 +644,36 @@ class _MoreScreenState extends State<MoreScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             Text('Files on this device', style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              'Booking confirmations you attached to trips, flights and hotels.',
+              style: Theme.of(ctx).textTheme.bodySmall,
+            ),
             const SizedBox(height: 12),
-            if (_files.isEmpty)
+            if (files.isEmpty)
               Text(
-                'No files yet.',
+                'No files yet. Attach confirmations from the Tickets screen.',
                 style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(color: Colors.grey),
               )
             else
-              ..._files.map(
+              ...files.map(
                 (f) => ListTile(
-                  leading: const Icon(Icons.insert_drive_file_outlined),
+                  leading: Icon(
+                    f.isImage ? Icons.image_outlined : Icons.picture_as_pdf_outlined,
+                  ),
                   title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(DateFormat('MMM d, y').format(f.createdAt)),
+                  subtitle: Text(
+                    '${f.linkedType ?? 'unlinked'}${f.sizeLabel.isEmpty ? '' : ' • ${f.sizeLabel}'}'
+                    ' • ${DateFormat('MMM d, y').format(f.createdAt)}',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await AttachmentService().delete(f);
+                      if (mounted) await _loadData();
+                    },
+                  ),
                 ),
               ),
           ],

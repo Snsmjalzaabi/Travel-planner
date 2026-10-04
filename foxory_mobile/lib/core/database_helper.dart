@@ -25,7 +25,7 @@ class DatabaseHelper {
         join((await getApplicationDocumentsDirectory()).path, 'foxory.db');
     return openDatabase(
       dbPath,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onOpen: (db) async => _ensureSchema(db),
@@ -50,17 +50,27 @@ class DatabaseHelper {
     'visas',
     'notes',
     'tasks',
-    'app_files',
   ];
+
+  /// Tables excluded from sync because they hold device-local paths or binary
+  /// payloads that a JSON backup cannot carry meaningfully.
+  static const excludedFromSync = <String>['app_files'];
 
   Future<void> _ensureSchema(Database db) async {
     await _addColumnIfMissing(db, 'trips', 'transport_label', 'TEXT DEFAULT \'Flight\'');
     await _addColumnIfMissing(db, 'trips', 'trip_type', 'TEXT DEFAULT \'friends\'');
     await _addColumnIfMissing(db, 'trips', 'destination_image', 'TEXT');
+    // Attachments: link a file to whatever it belongs to (flight, hotel...).
+    await _addColumnIfMissing(db, 'app_files', 'linked_type', 'TEXT');
+    await _addColumnIfMissing(db, 'app_files', 'linked_id', 'INTEGER');
+
     // Soft deletes so a restore never resurrects a row the user removed.
+    // app_files is excluded: its file_path is device-local, so syncing the
+    // metadata would create broken entries on any other device.
     for (final table in syncTables) {
       await _addColumnIfMissing(db, table, 'deleted_at', 'TEXT');
     }
+    await _addColumnIfMissing(db, 'app_files', 'deleted_at', 'TEXT');
   }
 
   Future<void> _addColumnIfMissing(
@@ -430,6 +440,8 @@ class DatabaseHelper {
         "description" TEXT,
         "tags" TEXT DEFAULT '',
         "byte_count" INTEGER,
+        "linked_type" TEXT,
+        "linked_id" INTEGER,
         "sync_status" INTEGER DEFAULT 0,
         "sync_enabled" INTEGER DEFAULT 1
       )

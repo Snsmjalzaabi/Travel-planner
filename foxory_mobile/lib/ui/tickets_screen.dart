@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../core/database_helper.dart';
+import 'attachment_strip.dart';
 
 /// One bookable thing: a flight or a hotel stay, normalised so both can be
 /// shown in a single chronological list.
@@ -371,6 +372,14 @@ class _TicketsScreenState extends State<TicketsScreen> {
                   style: GoogleFonts.inter(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.5)),
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            // Keyed on id + kind so each ticket carries its own confirmations.
+            AttachmentStrip(
+              key: ValueKey('${t.kind}-${t.id}'),
+              linkedType: t.kind,
+              linkedId: t.id,
+              title: hasRef ? 'Confirmation' : 'Add booking reference',
             ),
           ],
         ),
