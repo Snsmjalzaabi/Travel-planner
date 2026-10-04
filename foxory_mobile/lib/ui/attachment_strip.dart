@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/attachment_service.dart';
+import '../services/confirmation_parser.dart';
 
 /// Attachments row with an upload button, for any linked entity.
 ///
@@ -66,6 +67,9 @@ class _AttachmentStripState extends State<AttachmentStrip> {
       setState(() {
         _items = [attachment, ..._items];
       });
+      if (attachment.mimeType.contains('pdf')) {
+        await _offerExtraction(attachment);
+      }
     } on AttachmentTooLarge catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -130,6 +134,44 @@ class _AttachmentStripState extends State<AttachmentStrip> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Reads a freshly attached PDF and shows what it found for review.
+  ///
+  /// Deliberately a separate, explicit step: the parser is heuristic, and a
+  /// wrong booking reference is worse than a missing one.
+  Future<void> _offerExtraction(Attachment attachment) async {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Reading confirmation...'),
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    final extracted = await extractFromPdf(attachment);
+    if (!mounted) return;
+
+    if (extracted.scanned) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('That PDF is a scan or image, so there is no text to read.'),
+        ),
+      );
+      return;
+    }
+    if (!extracted.foundAnything) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not find booking details in that PDF.')),
+      );
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _ExtractionDialog(extracted: extracted, fileName: attachment.name),
     );
   }
 
@@ -288,3 +330,70 @@ class _AttachmentStripState extends State<AttachmentStrip> {
 
 /// Where an attachment came from.
 enum AttachmentSource { camera, gallery, file }
+
+/// Shows what was read out of a confirmation so the user can check it.
+/// Nothing is applied automatically - a wrong booking reference would be
+/// worse than none, so this is read-only information to compare against.
+class _ExtractionDialog extends StatelessWidget {
+  final ExtractedConfirmation extracted;
+  final String fileName;
+
+  const _ExtractionDialog({required this.extracted, required this.fileName});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: const Text('Confirmation details found'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(fileName, style: GoogleFonts.inter(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.5))),
+            const SizedBox(height: 12),
+            ...extracted.summary.map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.check_circle, size: 14, color: cs.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(line, style: GoogleFonts.inter(fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 14, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Check these against the PDF before using them. Nothing has been saved to your trip.',
+                      style: GoogleFonts.inter(fontSize: 11, height: 1.35, color: Colors.orange),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+      ],
+    );
+  }
+}

@@ -1,10 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../core/database_helper.dart';
+import '../core/app_settings.dart';
+import 'confirmation_parser.dart';
 
 /// One stored attachment, as held in the `app_files` table.
 class Attachment {
@@ -241,4 +245,50 @@ String humanSize(int bytes) {
   if (bytes < 1024) return '$bytes B';
   if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+/// Sends a PDF to the Pi's extraction endpoint and parses the text it returns.
+///
+/// The Pi already runs the sync server and has poppler's pdftotext installed,
+/// so this reuses that rather than pulling a PDF engine onto the phone.
+/// Scanned images and screenshots return no text layer - those need OCR,
+/// which is not wired up, so we say so instead of guessing.
+Future<ExtractedConfirmation> extractFromPdf(Attachment attachment) async {
+  if (!attachment.mimeType.contains('pdf') && !attachment.name.toLowerCase().endsWith('.pdf')) {
+    return const ExtractedConfirmation();
+  }
+  final file = File(attachment.filePath);
+  if (!await file.exists()) return const ExtractedConfirmation();
+
+  final settings = AppSettings();
+  await settings.init();
+  if (settings.piAddress.trim().isEmpty) return const ExtractedConfirmation();
+
+  final bytes = await file.readAsBytes();
+  final uri = Uri.parse('http://${settings.piAddress}:${settings.piPort}/sync/extract');
+
+  try {
+    final response = await http
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'X-Device-ID': settings.deviceId,
+            if (settings.syncPassword.isNotEmpty) 'X-Sync-Password': settings.syncPassword,
+          },
+          body: bytes,
+        )
+        .timeout(const Duration(seconds: 40));
+
+    if (response.statusCode != 200) {
+      return const ExtractedConfirmation();
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final scanned = decoded['scanned'] == true;
+    final text = (decoded['text'] as String?) ?? '';
+    return const ConfirmationParser().parse(text, scanned: scanned);
+  } catch (_) {
+    // Pi unreachable, or extraction failed. Not worth blocking the upload.
+    return const ExtractedConfirmation();
+  }
 }

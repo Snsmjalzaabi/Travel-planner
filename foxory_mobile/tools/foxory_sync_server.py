@@ -11,10 +11,18 @@ Endpoints
   GET  /sync/download?device_id=X  -> newest backup for a device
   GET  /sync/download?file=NAME    -> one specific backup
   POST /sync/upload                -> store a backup
+  POST /sync/extract                -> extract text from an uploaded PDF
+
+Only text-layer PDFs are supported (poppler's pdftotext). Scanned images and
+photos return empty text, so the client should say so rather than guessing.
 """
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
+import tempfile
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,6 +31,10 @@ from urllib.parse import parse_qs, urlparse
 HOST = "0.0.0.0"
 PORT = 9101
 OUT_DIR = Path.home() / "foxory-sync"
+
+# Refuse anything larger than this on the extract endpoint.
+MAX_EXTRACT_BYTES = 15 * 1024 * 1024
+EXTRACT_TIMEOUT_SECONDS = 20
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -109,6 +121,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/sync/extract":
+            self._handle_extract(parsed)
+            return
+
         if parsed.path != "/sync/upload":
             self._json(404, {"ok": False, "error": "not found"})
             return
@@ -139,6 +155,58 @@ class Handler(BaseHTTPRequestHandler):
                 "path": str(backup_path),
                 "server_timestamp": stamp,
             })
+        except Exception as exc:
+            self._json(400, {"ok": False, "error": str(exc)})
+
+    def _handle_extract(self, parsed):
+        """Pull the text layer out of an uploaded PDF using pdftotext."""
+        if not shutil.which("pdftotext"):
+            self._json(501, {
+                "ok": False,
+                "error": "pdftotext is not installed on this machine",
+            })
+            return
+
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0:
+                raise ValueError("empty upload")
+            if length > MAX_EXTRACT_BYTES:
+                self._json(413, {"ok": False, "error": "file too large"})
+
+            raw = self.rfile.read(length)
+            if not raw.startswith(b"%PDF"):
+                self._json(415, {
+                    "ok": False,
+                    "error": "not a PDF (no text layer to read)",
+                })
+                return
+
+            tmp_dir = tempfile.mkdtemp(prefix="foxory-extract-")
+            try:
+                pdf_path = os.path.join(tmp_dir, "upload.pdf")
+                with open(pdf_path, "wb") as fh:
+                    fh.write(raw)
+
+                proc = subprocess.run(
+                    ["pdftotext", "-layout", pdf_path, "-"],
+                    capture_output=True,
+                    timeout=EXTRACT_TIMEOUT_SECONDS,
+                )
+                text = proc.stdout.decode("utf-8", "replace")
+                # An empty or whitespace-only result means a scanned image,
+                # which needs OCR. Say so instead of returning nothing.
+                is_scanned = len(text.strip()) < 24
+                self._json(200, {
+                    "ok": True,
+                    "text": "" if is_scanned else text[:200_000],
+                    "chars": len(text.strip()),
+                    "scanned": is_scanned,
+                })
+            finally:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+        except subprocess.TimeoutExpired:
+            self._json(504, {"ok": False, "error": "timed out reading the PDF"})
         except Exception as exc:
             self._json(400, {"ok": False, "error": str(exc)})
 
