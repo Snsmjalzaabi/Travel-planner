@@ -4,7 +4,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:foxory_mobile/services/notification_service.dart';
+import 'package:your_travel_buddy/services/notification_service.dart';
 
 void main() {
   test('only granted counts as "can notify"', () {

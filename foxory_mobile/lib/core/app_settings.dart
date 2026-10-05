@@ -64,6 +64,6 @@ class AppSettings {
 
   String _defaultDeviceId() {
     final now = DateTime.now().millisecondsSinceEpoch;
-    return 'foxory-phone-$now';
+    return 'your_travel_buddy-phone-$now';
   }
 }

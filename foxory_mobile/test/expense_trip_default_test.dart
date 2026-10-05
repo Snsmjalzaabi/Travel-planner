@@ -1,8 +1,8 @@
 // Which trip an expense defaults to. This matters because expenses used to
 // default to "No trip", which silently meant they counted towards no budget.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:foxory_mobile/models/models.dart';
-import 'package:foxory_mobile/services/budget_service.dart';
+import 'package:your_travel_buddy/models/models.dart';
+import 'package:your_travel_buddy/services/budget_service.dart';
 
 Trip trip(
   String name, {

@@ -1,4 +1,4 @@
-# foxory_mobile
+# Your Travel Buddy
 
 A new Flutter project.
 

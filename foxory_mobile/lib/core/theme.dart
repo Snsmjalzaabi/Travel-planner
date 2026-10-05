@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Centralized theme configuration for Foxory app.
+/// Centralized theme configuration 
 /// Provides light and dark Material 3 themes with Google Fonts,
 /// elevation-free cards, consistent border radius, and semantic colors.
 class AppTheme {

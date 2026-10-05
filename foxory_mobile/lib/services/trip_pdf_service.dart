@@ -47,7 +47,7 @@ class TripPdfBuilder {
   }) async {
     final doc = pw.Document(
       title: '${trip.name} trip brief',
-      author: 'Foxory',
+      author: 'Your Travel Buddy',
     );
 
     final pdfFont = pw.Font.helvetica();

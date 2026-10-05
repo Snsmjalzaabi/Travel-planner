@@ -1,6 +1,6 @@
 {
-    "name": "foxory_mobile",
-    "short_name": "foxory_mobile",
+    "name": "your_travel_buddy",
+    "short_name": "your_travel_buddy",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

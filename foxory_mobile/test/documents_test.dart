@@ -5,8 +5,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:foxory_mobile/core/database_helper.dart';
-import 'package:foxory_mobile/models/models.dart';
+import 'package:your_travel_buddy/core/database_helper.dart';
+import 'package:your_travel_buddy/models/models.dart';
 import 'package:path/path.dart' as p;
 
 void main() {

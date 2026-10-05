@@ -2,7 +2,7 @@
 // Tailscale. These tests pin the refusal rules, because a wrong result here
 // means trip data leaving the phone over the open local network.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:foxory_mobile/services/tailscale_guard.dart';
+import 'package:your_travel_buddy/services/tailscale_guard.dart';
 
 void main() {
   const guard = TailscaleGuard();

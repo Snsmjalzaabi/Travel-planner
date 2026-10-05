@@ -4,7 +4,7 @@
 // never an auto-save. These tests pin both what it should find and, just as
 // importantly, what it must NOT invent.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:foxory_mobile/services/confirmation_parser.dart';
+import 'package:your_travel_buddy/services/confirmation_parser.dart';
 
 void main() {
   const parser = ConfirmationParser();

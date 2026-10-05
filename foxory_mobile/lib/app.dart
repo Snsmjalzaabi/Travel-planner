@@ -11,12 +11,12 @@ import 'ui/planner_screen.dart';
 import 'ui/expenses_screen.dart';
 import 'ui/more_screen.dart';
 
-class FoxoryApp extends StatefulWidget {
+class YourTravelBuddyApp extends StatefulWidget {
   final DatabaseHelper dbHelper;
   final SharedPreferences prefs;
   final AlertService alerts;
 
-  const FoxoryApp({
+  const YourTravelBuddyApp({
     super.key,
     required this.dbHelper,
     required this.prefs,
@@ -24,10 +24,10 @@ class FoxoryApp extends StatefulWidget {
   });
 
   @override
-  State<FoxoryApp> createState() => _FoxoryAppState();
+  State<YourTravelBuddyApp> createState() => _YourTravelBuddyAppState();
 }
 
-class _FoxoryAppState extends State<FoxoryApp> {
+class _YourTravelBuddyAppState extends State<YourTravelBuddyApp> {
   int _currentIndex = 0;
   bool _isDark = true;
 
@@ -47,7 +47,7 @@ class _FoxoryAppState extends State<FoxoryApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Foxory',
+      title: 'Your Travel Buddy',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
@@ -80,7 +80,7 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Foxory'),
+        title: const Text('Your Travel Buddy'),
         leading: _buildThemeButton(),
         actions: [
           IconButton(

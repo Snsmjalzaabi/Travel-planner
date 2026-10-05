@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import '../core/database_helper.dart';
 import '../services/hotel_confirmation_service.dart';
 
-/// Hotel booking entry form — styled to match the Foxory theme:
+/// Hotel booking entry form — styled to match the :
 ///   Google Fonts (Inter / Poppins), Material 3 color scheme,
 ///   card-surface form, rounded inputs with primary focus, themed buttons.
 

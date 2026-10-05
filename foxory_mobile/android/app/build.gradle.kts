@@ -3,7 +3,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 android {
-    namespace = "com.foxory.foxory_mobile"
+    namespace = "com.yourtravel.buddy"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
     compileOptions {
@@ -12,7 +12,7 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
     defaultConfig {
-        applicationId = "com.foxory.foxory_mobile"
+        applicationId = "com.yourtravel.buddy"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

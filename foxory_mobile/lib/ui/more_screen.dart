@@ -615,7 +615,7 @@ class _MoreScreenState extends State<MoreScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Foxory Travel & Life'),
+        title: const Text('Your Travel Buddy'),
         content: const Text(
           'Version 1.0.0\n\n'
           'Your trips, documents, expenses and plans. Works offline and backs up to your Raspberry Pi.',

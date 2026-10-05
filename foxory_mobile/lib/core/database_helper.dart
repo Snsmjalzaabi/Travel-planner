@@ -22,7 +22,7 @@ class DatabaseHelper {
 
   Future<Database> _initDB() async {
     final dbPath = testOverridePath ??
-        join((await getApplicationDocumentsDirectory()).path, 'foxory.db');
+        join((await getApplicationDocumentsDirectory()).path, 'your_travel_buddy.db');
     return openDatabase(
       dbPath,
       version: 5,

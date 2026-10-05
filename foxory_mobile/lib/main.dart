@@ -19,7 +19,7 @@ void main() async {
   // Each step is capped so a hung plugin cannot strand the app on splash.
   unawaited(_initNotifications(alerts));
 
-  runApp(FoxoryApp(prefs: prefs, dbHelper: dbHelper, alerts: alerts));
+  runApp(YourTravelBuddyApp(prefs: prefs, dbHelper: dbHelper, alerts: alerts));
 }
 
 /// Initialises notifications in the background.

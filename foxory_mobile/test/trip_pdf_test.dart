@@ -4,10 +4,10 @@ import 'dart:convert';
 import 'dart:io' as io;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:foxory_mobile/models/models.dart';
-import 'package:foxory_mobile/services/budget_service.dart';
-import 'package:foxory_mobile/services/currency_service.dart';
-import 'package:foxory_mobile/services/trip_pdf_service.dart';
+import 'package:your_travel_buddy/models/models.dart';
+import 'package:your_travel_buddy/services/budget_service.dart';
+import 'package:your_travel_buddy/services/currency_service.dart';
+import 'package:your_travel_buddy/services/trip_pdf_service.dart';
 
 Trip buildTrip({double budget = 9000, int travelers = 3}) => Trip(
       id: 1,

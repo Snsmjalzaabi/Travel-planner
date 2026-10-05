@@ -50,8 +50,8 @@ class AlertService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   final DatabaseHelper _db;
-  static const _channelId = 'foxory_alerts';
-  static const _channelName = 'Foxory travel alerts';
+  static const _channelId = 'your_travel_buddy_alerts';
+  static const _channelName = 'Your Travel Buddy alerts';
   static const _dailyAlarmId = 1;
 
   static const _tripReminderDays = 3; // notify N days before departure
@@ -150,7 +150,7 @@ class AlertService {
   Future<void> scheduleDailyCheck({int hour = 8, int minute = 0}) async {
     await _plugin.zonedSchedule(
       _dailyAlarmId,
-      'Daily Foxory check',
+      'Daily Your Travel Buddy check',
       'Checking your travel documents and reminders.',
       _nextInstanceOf(hour, minute),
       const NotificationDetails(

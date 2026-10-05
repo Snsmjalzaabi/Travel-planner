@@ -85,7 +85,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     Icons.settings,
                     cs.primary,
                     _openSettings,
-                    subtitle: 'Android has blocked further requests. Enable notifications for Foxory here.',
+                    subtitle: 'Android has blocked further requests. Enable notifications for Your Travel Buddy here.',
                   )
                 else if (!_state.canNotify)
                   _button(

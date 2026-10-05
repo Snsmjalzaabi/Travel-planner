@@ -83,7 +83,7 @@ class TripShareService {
       return;
     }
 
-    final dir = Directory('${Directory.systemTemp.path}/foxory-shares');
+    final dir = Directory('${Directory.systemTemp.path}/your_travel_buddy-shares');
     if (!await dir.exists()) await dir.create(recursive: true);
     final file = File('${dir.path}/$name');
     await file.writeAsBytes(bytes);
