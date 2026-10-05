@@ -12,115 +12,7 @@ class QuickCaptureWidget extends StatefulWidget {
 class _QuickCaptureWidgetState extends State<QuickCaptureWidget> {
   final GlobalKey<ScaffoldMessengerState> _scaffoldKey = GlobalKey<ScaffoldMessengerState>();
 
-  void _showCaptureOptions() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 16,
-          left: 16,
-          right: 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Quick Capture',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Capture something quickly',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-            ),
-            const SizedBox(height: 16),
-            _buildOptionRow(Icons.note, 'Note', 'Text note', ColorsRecord.noteColor),
-            const SizedBox(height: 8),
-            _buildOptionRow(Icons.tag, 'Task', 'Quick task', ColorsRecord.taskColor),
-            const SizedBox(height: 8),
-            _buildOptionRow(Icons.attach_money, 'Expense', 'Log expense', ColorsRecord.expenseColor),
-            const SizedBox(height: 8),
-            _buildOptionRow(Icons.hotel, 'Trip Idea', 'New trip idea', ColorsRecord.tripColor),
-            const SizedBox(height: 8),
-            _buildOptionRow(Icons.photo_camera, 'Photo', 'Take a photo', ColorsRecord.photoColor),
-            const SizedBox(height: 8),
-            _buildOptionRow(Icons.flight, 'Flight', 'Flight info', ColorsRecord.flightColor),
-            const SizedBox(height: 8),
-            _buildOptionRow(Icons.hotel, 'Hotel', 'Hotel info', ColorsRecord.hotelColor),
-            const SizedBox(height: 16),
-            Center(
-              child: TextButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, size: 18),
-                label: const Text('Cancel'),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOptionRow(IconData icon, String label, String subtitle, Color color) {
-    return Material(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: () {
-          Navigator.pop(context);
-          _handleCapture(label.toLowerCase(), icon);
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: Theme.of(context).textTheme.titleMedium),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _handleCapture(String type, IconData icon) {
+  void _handleCapture(String type) {
     switch (type) {
       case 'note':
         _showNoteCapture();
@@ -181,11 +73,14 @@ class _QuickCaptureWidgetState extends State<QuickCaptureWidget> {
               children: [
                 TextButton(
                   onPressed: () {
+                    // Grab the messenger before popping: using `context` after
+                    // Navigator.pop tears the route down and can blank the screen.
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(context);
                     if (controller.text.isNotEmpty) {
                       widget.onCapture('note', text: controller.text);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Note captured')),
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Note captured')),
                       );
                     }
                   },
@@ -237,11 +132,14 @@ class _QuickCaptureWidgetState extends State<QuickCaptureWidget> {
               children: [
                 TextButton(
                   onPressed: () {
+                    // Grab the messenger before popping: using `context` after
+                    // Navigator.pop tears the route down and can blank the screen.
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(context);
                     if (controller.text.isNotEmpty) {
                       widget.onCapture('task', text: controller.text);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Task captured')),
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Task captured')),
                       );
                     }
                   },
@@ -302,11 +200,14 @@ class _QuickCaptureWidgetState extends State<QuickCaptureWidget> {
               children: [
                 TextButton(
                   onPressed: () {
+                    // Grab the messenger before popping: using `context` after
+                    // Navigator.pop tears the route down and can blank the screen.
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(context);
                     if (amountController.text.isNotEmpty) {
                       widget.onCapture('expense', text: '${amountController.text} ${descController.text}');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Expense logged')),
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Expense logged')),
                       );
                     }
                   },
@@ -358,11 +259,14 @@ class _QuickCaptureWidgetState extends State<QuickCaptureWidget> {
               children: [
                 TextButton(
                   onPressed: () {
+                    // Grab the messenger before popping: using `context` after
+                    // Navigator.pop tears the route down and can blank the screen.
+                    final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(context);
                     if (controller.text.isNotEmpty) {
                       widget.onCapture('trip', text: controller.text);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Trip idea saved')),
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Trip idea saved')),
                       );
                     }
                   },
@@ -381,21 +285,9 @@ class _QuickCaptureWidgetState extends State<QuickCaptureWidget> {
     );
   }
 
-  void _showPhotoCapture() {
-    Navigator.pop(context);
-    // Photo capture is handled by the parent widget
-    widget.onCapture('photo');
-  }
-
-  void _showFlightCapture() {
-    Navigator.pop(context);
-    widget.onCapture('flight');
-  }
-
-  void _showHotelCapture() {
-    Navigator.pop(context);
-    widget.onCapture('hotel');
-  }
+  void _showPhotoCapture() => widget.onCapture('photo');
+  void _showFlightCapture() => widget.onCapture('flight');
+  void _showHotelCapture() => widget.onCapture('hotel');
 
   @override
   Widget build(BuildContext context) {
@@ -418,18 +310,6 @@ class _QuickCaptureWidgetState extends State<QuickCaptureWidget> {
           _buildQuickButton(Icons.hotel, 'Hotel', ColorsRecord.hotelColor,
               'Tap to log hotel info'),
           const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _showCaptureOptions,
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(
-                'More',
-                style: Theme.of(this.context).textTheme.labelLarge,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -442,7 +322,7 @@ class _QuickCaptureWidgetState extends State<QuickCaptureWidget> {
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          onTap: _showCaptureOptions,
+          onTap: () => _handleCapture(label.toLowerCase()),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.all(14),
