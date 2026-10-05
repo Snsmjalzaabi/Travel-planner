@@ -1,4 +1,4 @@
-package com.foxory.foxory_mobile
+package com.yourtravel.buddy
 
 import io.flutter.embedding.android.FlutterActivity
 
