@@ -25,6 +25,11 @@ class TripPdfBuilder {
   static final _warn = PdfColor.fromHex('#DC2626');
   static final _good = PdfColor.fromHex('#059669');
 
+  // PdfColor has no alpha helper, so tints are explicit.
+  static final _accentWash = PdfColor.fromHex('#FEF6E7');
+  static final _accentLine = PdfColor.fromHex('#E8B84B');
+  static final _orange = PdfColor.fromHex('#B45309');
+
   final _dateFmt = DateFormat('d MMM yyyy');
 
   Future<Uint8List> build({
@@ -66,14 +71,10 @@ class TripPdfBuilder {
             _sectionTitle('Accommodation', pdfFont, pdfBold),
             ...hotels.map((h) => _hotelCard(h, pdfFont, pdfBold)),
           ],
-          if (includeItinerary && itinerary.isNotEmpty) ...[
-            _sectionTitle('Day by day', pdfFont, pdfBold),
-            _itineraryTable(itinerary, pdfFont, pdfBold),
-          ],
-          if (includeBudget && budget != null) ...[
-            _sectionTitle('Budget', pdfFont, pdfBold),
-            _budgetTable(budget, allocations, pdfFont, pdfBold),
-          ],
+          if (includeItinerary && itinerary.isNotEmpty)
+            _section('Day by day', pdfFont, pdfBold, _itineraryTable(itinerary, pdfFont, pdfBold)),
+          if (includeBudget && budget != null)
+            _section('Budget', pdfFont, pdfBold, _budgetTable(budget, allocations, pdfFont, pdfBold)),
           if (includeExpenses && expenses.isNotEmpty) ...[
             _sectionTitle('Expenses', pdfFont, pdfBold),
             _expenseTable(expenses, pdfFont, pdfBold),
@@ -160,7 +161,7 @@ class TripPdfBuilder {
     final rows = <(String, String)>[
       ('Travelers', '${trip.travelers}'),
       ('Transport', trip.transportLabel),
-      if (trip.totalBudget > 0) ('Budget', _money(trip.totalBudget)),
+      if ((trip.totalBudget) > 0) ('Budget', _money(trip.totalBudget)),
       if (trip.originCountry.trim().isNotEmpty) ('From', '${trip.originName}, ${trip.originCountry}'),
       if (trip.destCountry.trim().isNotEmpty) ('To', '${trip.destName}, ${trip.destCountry}'),
       ('Status', trip.status.isEmpty ? 'planning' : trip.status),
@@ -173,7 +174,7 @@ class TripPdfBuilder {
       ),
       children: rows
           .map(
-            (r) => pw.Row(
+            (r) => pw.TableRow(
               children: [
                 pw.Expanded(
                   flex: 2,
@@ -197,6 +198,17 @@ class TripPdfBuilder {
     );
   }
 
+  /// A heading plus its first row of content, glued together.
+  ///
+  /// Without this a page break can strand "Budget" at the bottom of a page
+  /// with the table on the next one - it looked broken rather than paginated.
+  pw.Widget _section(String text, pw.Font font, pw.Font bold, pw.Widget content) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [_sectionTitle(text, font, bold), content],
+    );
+  }
+
   pw.Widget _sectionTitle(String text, pw.Font font, pw.Font bold) {
     return pw.Container(
       margin: const pw.EdgeInsets.only(top: 20, bottom: 8),
@@ -213,7 +225,9 @@ class TripPdfBuilder {
   // ---------- flights ----------
 
   pw.Widget _flightCard(Flight f, pw.Font font, pw.Font bold) {
-    final ref = f.bookingReference.trim().isNotEmpty ? f.bookingReference : f.confirmationNumber;
+    final booking = f.bookingReference ?? '';
+    final conf = f.confirmationNumber ?? '';
+    final ref = booking.trim().isNotEmpty ? booking : conf;
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 8),
       padding: const pw.EdgeInsets.all(10),
@@ -246,13 +260,13 @@ class TripPdfBuilder {
               pw.Expanded(child: _timeCol(f.arrival, f.toCode.isNotEmpty ? f.toCode : f.toCity, font, bold, alignRight: true)),
             ],
           ),
-          if (f.seat.trim().isNotEmpty || f.cost > 0 || f.status.trim().isNotEmpty) ...[
+          if (f.seat.trim().isNotEmpty || (f.cost ?? 0) > 0 || f.status.trim().isNotEmpty) ...[
             pw.SizedBox(height: 4),
             pw.Text(
               [
                 if (f.seat.trim().isNotEmpty) 'Seat ${f.seat}',
-                if (f.cost > 0) 'Cost ${_moneyWith(f.cost, f.currency)}',
-                if (f.status.trim().isNotEmpty) f.status,
+                if ((f.cost ?? 0) > 0) 'Cost ${_moneyWith(f.cost!, f.currency)}',
+                if (f.status.trim().isNotEmpty) f.status.trim(),
               ].join('   |   '),
               style: pw.TextStyle(font: font, fontSize: 8.5, color: _muted),
             ),
@@ -300,15 +314,25 @@ class TripPdfBuilder {
           ),
           pw.Text(
             [
-              if (h.confirmationNumber.trim().isNotEmpty) 'Ref ${h.confirmationNumber}',
-              if (h.phone.trim().isNotEmpty) h.phone,
-              if (h.cost > 0) _moneyWith(h.cost, h.currency),
+              if ((h.confirmationNumber ?? '').trim().isNotEmpty) 'Ref ${(h.confirmationNumber ?? '').trim()}',
+              if ((h.phone ?? '').trim().isNotEmpty) (h.phone ?? '').trim(),
+              if ((h.cost ?? 0) > 0) _moneyWith(h.cost!, h.currency),
             ].join('   |   '),
             style: pw.TextStyle(font: font, fontSize: 8.5, color: _muted),
           ),
         ],
       ),
     );
+  }
+
+  /// ItineraryDay has `theme` and `notes` - there is no title field.
+  String _dayPlan(ItineraryDay d) {
+    final theme = (d.theme ?? '').trim();
+    final notes = d.notes.trim();
+    if (theme.isEmpty && notes.isEmpty) return '—';
+    if (theme.isEmpty) return notes;
+    if (notes.isEmpty) return theme;
+    return '$theme\n$notes';
   }
 
   // ---------- itinerary ----------
@@ -339,7 +363,7 @@ class TripPdfBuilder {
               _cell('${d.dayNumber}', font, 1),
               _cell(_fmt(d.date), font, 2),
               _cell(
-                d.title.trim().isEmpty ? d.notes.trim() : '${d.title}${d.notes.trim().isEmpty ? '' : '\n${d.notes}'}',
+                _dayPlan(d),
                 font,
                 6,
               ),
@@ -390,11 +414,11 @@ class TripPdfBuilder {
                 return pw.TableRow(
                   children: [
                     _cell(_pretty(k), font, 4),
-                    _cell(alloc > 0 ? _money(alloc) : '—', font, 2, alignRight: true,
-                        color: alloc > 0 ? null : _muted),
+                    _cell(alloc > 0 ? _money(alloc) : 'not set', font, 2, alignRight: true,
+                        color: alloc > 0 ? null : _orange),
                     _cell(_money(spent), font, 2, alignRight: true),
                     _cell(
-                      alloc <= 0 ? '—' : (left >= 0 ? _money(left) : 'OVER ${_money(left.abs())}'),
+                      alloc <= 0 ? 'not budgeted' : (left >= 0 ? _money(left) : 'OVER ${_money(left.abs())}'),
                       bold,
                       2,
                       alignRight: true,
@@ -444,7 +468,7 @@ class TripPdfBuilder {
               bold,
               budget.isOverBudget ? _warn : _good,
             ),
-          if (trip.travelers > 0 && budget.hasBudget)
+          if ((trip.travelers) > 0 && budget.hasBudget)
             _kv('Per traveller (spent)', _money(budget.spent / trip.travelers), font, bold, null),
         ],
       ),
@@ -468,7 +492,9 @@ class TripPdfBuilder {
 
   pw.Widget _expenseTable(List<Expense> expenses, pw.Font font, pw.Font bold) {
     final sorted = [...expenses]..sort((a, b) => a.date.compareTo(b.date));
-    final shown = sorted.length > 80 ? sorted.sublist(0, 80) : sorted;
+    // No row cap - a trip with 300 expenses should show all 300. dart_pdf
+    // paginates tables across pages on its own.
+    final shown = sorted;
 
     return pw.Table(
       border: pw.TableBorder.symmetric(
@@ -495,15 +521,6 @@ class TripPdfBuilder {
             ],
           ),
         ),
-        if (sorted.length > shown.length)
-          pw.TableRow(
-            children: [
-              _cell('', font, 6),
-              _cell('${sorted.length - shown.length} more not shown', font, 4),
-              _cell('', font, 2),
-              _cell('', font, 2),
-            ],
-          ),
       ],
     );
   }
@@ -515,8 +532,8 @@ class TripPdfBuilder {
       margin: const pw.EdgeInsets.only(top: 8),
       padding: const pw.EdgeInsets.all(9),
       decoration: pw.BoxDecoration(
-        color: _accent.withValues(alpha: 0.08),
-        border: pw.Border.all(color: _accent.withValues(alpha: 0.4), width: 0.5),
+        color: _accentWash,
+        border: pw.Border.all(color: _accentLine, width: 0.5),
         borderRadius: pw.BorderRadius.circular(5),
       ),
       child: pw.Column(
@@ -538,8 +555,9 @@ class TripPdfBuilder {
 
   pw.Widget _packingList(List<PackingItem> items, pw.Font font, pw.Font bold) {
     final sorted = [...items]..sort((a, b) {
-      final c = a.packed.compareTo(b.packed);
-      return c != 0 ? c : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      // packed is a bool: unpacked first, packed after.
+      if (a.packed != b.packed) return a.packed ? 1 : -1;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
 
     return pw.Column(
@@ -571,7 +589,7 @@ class TripPdfBuilder {
                       ),
                     ),
                   ),
-                  if (i.quantity > 1)
+                  if ((i.quantity) > 1)
                     pw.Text('x${i.quantity}', style: pw.TextStyle(font: font, fontSize: 8.5, color: _muted)),
                 ],
               ),
@@ -585,13 +603,15 @@ class TripPdfBuilder {
   pw.Widget _confirmationFootnotes(List<Flight> flights, List<Hotel> hotels, pw.Font font) {
     final lines = <String>[];
     for (final f in flights) {
-      final ref = f.bookingReference.trim().isNotEmpty ? f.bookingReference : f.confirmationNumber;
+      final booking = f.bookingReference ?? '';
+    final conf = f.confirmationNumber ?? '';
+    final ref = booking.trim().isNotEmpty ? booking : conf;
       if (ref.trim().isNotEmpty) {
         lines.add('${[f.airline, f.flightNumber].where((s) => s.trim().isNotEmpty).join(' ')} - reference $ref');
       }
     }
     for (final h in hotels) {
-      if (h.confirmationNumber.trim().isNotEmpty) {
+      if ((h.confirmationNumber ?? '').trim().isNotEmpty) {
         lines.add('${h.name} - reference ${h.confirmationNumber}');
       }
     }
@@ -634,8 +654,9 @@ class TripPdfBuilder {
 
   String _fmt(DateTime d) => _dateFmt.format(d);
   String _money(double v) => _moneyWith(v, trip.baseCurrency);
-  String _moneyWith(double v, String currency) {
-    final c = currency.trim().isEmpty ? trip.baseCurrency : currency.trim();
+  String _moneyWith(double v, String? currency) {
+    final raw = (currency ?? '').trim().isEmpty ? trip.baseCurrency : (currency ?? '').trim();
+    final c = raw;
     return '$c ${NumberFormat('#,##0.00').format(v)}';
   }
 

@@ -8,6 +8,7 @@ import 'budget_breakdown_screen.dart';
 import 'attachment_strip.dart';
 import '../core/database_helper.dart';
 import 'create_trip_dialog.dart';
+import 'trip_share_sheet.dart';
 
 /// Shared trip detail sheet, used by the Trips tab and the Home dashboard
 /// so both show the same information and the same actions.
@@ -132,6 +133,18 @@ void showTripDetailSheet(
               key: ValueKey('budget-${trip.id}-${expenses.length}'),
               trip: trip,
               allExpenses: expenses,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  showTripShareSheet(context, trip);
+                },
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                label: const Text('Share trip brief (PDF)'),
+              ),
             ),
             const SizedBox(height: 12),
             SizedBox(

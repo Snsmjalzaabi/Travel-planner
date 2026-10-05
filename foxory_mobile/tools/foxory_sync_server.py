@@ -33,10 +33,13 @@ PORT = 9101
 OUT_DIR = Path.home() / "foxory-sync"
 
 # Refuse anything larger than this on the extract endpoint.
-MAX_EXTRACT_BYTES = 15 * 1024 * 1024
-EXTRACT_TIMEOUT_SECONDS = 20
-OCR_TIMEOUT_SECONDS = 90
-MAX_OCR_PAGES = 3
+# No artificial caps: every page of a document is read and every figure is
+# kept. The only bounds are timeouts, and those are reported rather than
+# silently truncating the result - a partial booking reference is worse than
+# an honest failure.
+MAX_EXTRACT_BYTES = 100 * 1024 * 1024
+EXTRACT_TIMEOUT_SECONDS = 120
+OCR_TIMEOUT_SECONDS = 600
 
 # Tesseract cannot be installed with apt here (no sudo), so the .deb files were
 # unpacked into a private prefix under /home/fox/ocr. The wrapper sets
@@ -249,9 +252,16 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.exists(TESSERACT):
             return text, True, "unavailable"
 
-        ocr_text, page_count = self._ocr_pdf(src, ext) if ext == ".pdf" else self._ocr_image(src)
+        if ext == ".pdf":
+            ocr_text, page_count, timed_out = self._ocr_pdf(src, ext)
+        else:
+            ocr_text, page_count = self._ocr_image(src)
+            timed_out = False
+
         if len(ocr_text.strip()) >= 24:
-            return ocr_text, False, "ocr"
+            # A timeout means the text may be incomplete - the client needs to
+            # know so it does not present a half-read reference as final.
+            return ocr_text, False, "ocr-timeout" if timed_out else "ocr"
 
         return ocr_text, True, "ocr-empty"
 
@@ -265,15 +275,14 @@ class Handler(BaseHTTPRequestHandler):
         )
         return proc.stdout.decode("utf-8", "replace"), 1
 
-    def _ocr_pdf(self, src, ext):
+    def _ocr_pdf(self, src, ext):  # returns (text, pages, timed_out)
         """Rasterise scanned pages then OCR each one."""
         if not shutil.which("pdftoppm"):
-            return "", 0
+            return "", 0, False
 
         prefix = src + ".page"
         subprocess.run(
-            ["pdftoppm", "-r", str(OCR_DPI), "-png", "-f", "1",
-             "-l", str(MAX_OCR_PAGES), src, prefix],
+            ["pdftoppm", "-r", str(OCR_DPI), "-png", src, prefix],
             capture_output=True,
             timeout=OCR_TIMEOUT_SECONDS,
         )
@@ -283,9 +292,10 @@ class Handler(BaseHTTPRequestHandler):
             if f.startswith(os.path.basename(prefix)) and f.endswith(".png")
         )
         if not pages:
-            return "", 0
+            return "", 0, False
 
         chunks = []
+        timed_out = False
         for page in pages:
             try:
                 proc = subprocess.run(
@@ -295,13 +305,16 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 chunks.append(proc.stdout.decode("utf-8", "replace"))
             except subprocess.TimeoutExpired:
+                # Say so rather than returning a half-read document that looks
+                # complete.
+                timed_out = True
                 break
             finally:
                 try:
                     os.remove(page)
                 except OSError:
                     pass
-        return "\n".join(chunks), len(pages)
+        return "\n".join(chunks), len(pages), timed_out
 
     def log_message(self, format, *args):
         print(f"[{datetime.now().isoformat(timespec='seconds')}] {self.address_string()} {format % args}")

@@ -37,6 +37,11 @@ class ExtractedConfirmation {
   /// True when the source text was too thin to be a real confirmation.
   final bool scanned;
 
+  /// True when reading stopped early (a very large or slow document). The
+  /// fields below may be incomplete, so the UI must warn rather than present
+  /// a half-read booking reference as final.
+  final bool incomplete;
+
   /// Human-readable list of what was found, for the review sheet.
   List<String> get summary => [
         if (reference != null) 'Booking reference: $reference',
@@ -60,6 +65,7 @@ class ExtractedConfirmation {
     this.hotelName,
     this.total,
     this.scanned = false,
+    this.incomplete = false,
   });
 
   bool get foundAnything =>

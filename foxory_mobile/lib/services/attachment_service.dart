@@ -62,7 +62,9 @@ class Attachment {
 /// would leave the attachment broken after a restart.
 class AttachmentService {
   static const _folder = 'attachments';
-  static const _maxBytes = 15 * 1024 * 1024;
+  // Effectively unlimited for real documents and phone photos. The bound
+  // exists only to stop a pathological file exhausting memory.
+  static const _maxBytes = 100 * 1024 * 1024;
 
   /// Take a photo of the confirmation.
   Future<Attachment?> captureFromCamera({String? linkedType, int? linkedId}) async {
@@ -299,8 +301,24 @@ Future<ExtractedConfirmation> extractFromPdf(Attachment attachment) async {
     }
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
     final scanned = decoded['scanned'] == true;
+    final method = decoded['method'] as String?;
     final text = (decoded['text'] as String?) ?? '';
-    return const ConfirmationParser().parse(text, scanned: scanned);
+    final parsed = const ConfirmationParser().parse(text, scanned: scanned);
+    // "ocr-timeout" means the Pi stopped reading early; say so rather than
+    // letting a partial reference look authoritative.
+    if (method != 'ocr-timeout') return parsed;
+    return ExtractedConfirmation(
+      reference: parsed.reference,
+      flightNumber: parsed.flightNumber,
+      airline: parsed.airline,
+      from: parsed.from,
+      to: parsed.to,
+      dates: parsed.dates,
+      seat: parsed.seat,
+      hotelName: parsed.hotelName,
+      total: parsed.total,
+      incomplete: true,
+    );
   } on http.ClientException {
     // Pi unreachable - not worth blocking the upload.
     return const ExtractedConfirmation();

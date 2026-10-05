@@ -372,6 +372,31 @@ class _ExtractionDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+            if (extracted.incomplete) ...[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.report_problem, size: 14, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Reading stopped early on a large document, so these details may be incomplete. '
+                        'Check them against the original.',
+                        style: GoogleFonts.inter(fontSize: 11, height: 1.35, color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
