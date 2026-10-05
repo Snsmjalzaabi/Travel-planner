@@ -1,8 +1,8 @@
 import 'dart:io';
+
 import 'dart:typed_data';
 
-import 'package:cross_file/cross_file.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:share_plus/share_plus.dart';
 
 import '../core/database_helper.dart';
