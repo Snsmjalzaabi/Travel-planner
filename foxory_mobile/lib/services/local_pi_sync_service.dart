@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
 import '../core/app_settings.dart';
+import 'tailscale_guard.dart';
 import '../core/database_helper.dart';
 import 'soft_delete.dart';
 
@@ -19,7 +20,22 @@ class LocalPiSyncService {
 
   String get baseUrl => 'http://${settings.piAddress}:${settings.piPort}';
 
+  /// Blocks any transfer unless the Pi is genuinely reachable over Tailscale.
+  ///
+  /// Every sync entry point calls this first. Trip data does not leave the
+  /// phone over the local network, even though the Pi is reachable there.
+  Future<TailscaleCheck> _gate() async {
+    final check = await const TailscaleGuard().probe(settings.piAddress, settings.piPort);
+    lastBlockedReason = check.allowed ? null : check.message;
+    return check;
+  }
+
+  /// Set when a transfer was refused, so the UI can explain why.
+  String? lastBlockedReason;
+
   Future<LocalSyncResult> uploadAll() async {
+    final gate = await _gate();
+    if (!gate.allowed) return LocalSyncResult.skipped(gate.message);
     if (settings.piAddress.trim().isEmpty) {
       return LocalSyncResult.failure('Pi IP address is empty.');
     }
@@ -77,6 +93,8 @@ class LocalPiSyncService {
 
   /// Fetches the Pi's latest backup for this device.
   Future<LocalSyncResult> downloadLatest() async {
+    final gate = await _gate();
+    if (!gate.allowed) return LocalSyncResult.skipped(gate.message);
     if (settings.piAddress.trim().isEmpty) {
       return LocalSyncResult.failure('Pi IP address is empty.');
     }
@@ -123,6 +141,9 @@ class LocalPiSyncService {
   ///  - otherwise the newer `updated_at`/`created_at` wins
   ///  - local-only rows are kept, never deleted
   Future<LocalSyncResult> restoreBackup(Map<String, List<Map<String, dynamic>>> backup) async {
+    // Deliberately NOT gated: this merges data the phone already holds. Nothing
+    // leaves the device, so the Tailscale rule does not apply here. The gate
+    // belongs on the network calls (uploadAll, downloadLatest).
     final db = await dbHelper.database;
     final report = <String>[];
     var written = 0;
@@ -255,5 +276,12 @@ class LocalSyncResult {
 
   factory LocalSyncResult.failure(String message) {
     return LocalSyncResult(success: false, message: message);
+  }
+
+  /// Not an error - the transfer was deliberately declined because data is
+  /// only allowed to move over Tailscale. Distinct from [failure] so the UI
+  /// can say "held on the phone" rather than "something went wrong".
+  factory LocalSyncResult.skipped(String message) {
+    return LocalSyncResult(success: false, message: message, recordCount: 0);
   }
 }

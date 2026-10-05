@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../core/database_helper.dart';
 import '../core/app_settings.dart';
 import 'confirmation_parser.dart';
+import 'tailscale_guard.dart';
 
 /// One stored attachment, as held in the `app_files` table.
 class Attachment {
@@ -266,6 +267,11 @@ Future<ExtractedConfirmation> extractFromPdf(Attachment attachment) async {
   final settings = AppSettings();
   await settings.init();
   if (settings.piAddress.trim().isEmpty) return const ExtractedConfirmation();
+
+  // Confirmations are personal documents. They only leave the phone over
+  // Tailscale, same as the rest of the trip data - never over the LAN.
+  final gate = await const TailscaleGuard().probe(settings.piAddress, settings.piPort);
+  if (!gate.allowed) return const ExtractedConfirmation();
 
   final bytes = await file.readAsBytes();
   final uri = Uri.parse('http://${settings.piAddress}:${settings.piPort}/sync/extract');

@@ -11,7 +11,7 @@ class AppSettings {
   SharedPreferences? _prefs;
 
   // Pi sync defaults: personal/local use on Sultan's Pi.
-  String piAddress = '192.168.1.21';
+  String piAddress = '100.82.155.42';
   int piPort = 9101;
   String deviceId = '';
   String syncPassword = '';
