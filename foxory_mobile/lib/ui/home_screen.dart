@@ -4,10 +4,14 @@ import '../models/models.dart';
 import '../core/database_helper.dart';
 import '../widgets/quick_capture_widget.dart';
 import '../services/notification_service.dart';
+import '../services/budget_service.dart';
+import '../services/attachment_service.dart';
 import '../services/soft_delete.dart';
 import '../services/currency_service.dart';
 import 'trip_detail_sheet.dart';
 import 'expense_form_sheet.dart';
+import 'quick_flight_sheet.dart';
+import 'hotel_booking_form.dart';
 import 'documents_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -793,10 +797,75 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
         break;
+      case 'photo':
+        await _quickPhoto();
+        break;
+      case 'flight':
+        await _quickFlight();
+        break;
+      case 'hotel':
+        await _quickHotel();
+        break;
       default:
         break;
     }
   }
+  void toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// The trip these quick captures belong to.
+  ///
+  /// Prefers the trip currently being travelled, then the next one starting -
+  /// the same rule the expense form uses, so nothing lands unassigned.
+  Future<Trip?> _quickTripOrExplain() async {
+    final rows = await DatabaseHelper().queryAll(
+      'trips',
+      where: 'deleted_at IS NULL',
+      orderBy: 'departure ASC',
+    );
+    final trips = rows.map(Trip.fromMap).toList();
+    if (trips.isEmpty) {
+      toast('Create a trip first');
+      return null;
+    }
+    final trip = defaultTripFor(trips) ?? trips.first;
+    if (trip.id == null) {
+      toast('That trip could not be read');
+      return null;
+    }
+    return trip;
+  }
+
+  Future<void> _quickPhoto() async {
+    final trip = await _quickTripOrExplain();
+    if (trip == null) return;
+    final saved = await AttachmentService().captureFromCamera(
+      linkedType: 'trip',
+      linkedId: trip.id,
+    );
+    if (!mounted || saved == null) return;
+    toast('Photo attached to ${trip.name}');
+    await _loadData();
+  }
+
+  Future<void> _quickFlight() async {
+    final trip = await _quickTripOrExplain();
+    if (trip == null) return;
+    await showQuickFlightSheet(context, trip, onSaved: _loadData);
+  }
+
+  Future<void> _quickHotel() async {
+    final trip = await _quickTripOrExplain();
+    if (trip == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => HotelBookingForm(preselectedTripId: trip.id)),
+    );
+    await _loadData();
+  }
+
 
   void _fireAlertsNow() async {
     final count = await AlertService.instance?.fireAlertsNow() ?? 0;
