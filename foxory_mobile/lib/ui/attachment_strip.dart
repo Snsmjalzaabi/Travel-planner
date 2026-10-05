@@ -67,7 +67,11 @@ class _AttachmentStripState extends State<AttachmentStrip> {
       setState(() {
         _items = [attachment, ..._items];
       });
-      if (attachment.mimeType.contains('pdf')) {
+      final lower = attachment.name.toLowerCase();
+      final readable = attachment.mimeType.contains('pdf') ||
+          attachment.mimeType.startsWith('image/') ||
+          const ['.pdf', '.png', '.jpg', '.jpeg'].any(lower.endsWith);
+      if (readable) {
         await _offerExtraction(attachment);
       }
     } on AttachmentTooLarge catch (e) {
@@ -157,7 +161,7 @@ class _AttachmentStripState extends State<AttachmentStrip> {
     if (extracted.scanned) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('That PDF is a scan or image, so there is no text to read.'),
+          content: Text('Could not read any text from that file.'),
         ),
       );
       return;

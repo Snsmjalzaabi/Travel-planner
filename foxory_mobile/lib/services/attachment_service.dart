@@ -254,9 +254,12 @@ String humanSize(int bytes) {
 /// Scanned images and screenshots return no text layer - those need OCR,
 /// which is not wired up, so we say so instead of guessing.
 Future<ExtractedConfirmation> extractFromPdf(Attachment attachment) async {
-  if (!attachment.mimeType.contains('pdf') && !attachment.name.toLowerCase().endsWith('.pdf')) {
-    return const ExtractedConfirmation();
-  }
+  final name = attachment.name.toLowerCase();
+  final isPdf = attachment.mimeType.contains('pdf') || name.endsWith('.pdf');
+  final isImage = attachment.mimeType.startsWith('image/') ||
+      const ['.png', '.jpg', '.jpeg', '.webp', '.heic'].any(name.endsWith);
+  if (!isPdf && !isImage) return const ExtractedConfirmation();
+
   final file = File(attachment.filePath);
   if (!await file.exists()) return const ExtractedConfirmation();
 
@@ -266,13 +269,18 @@ Future<ExtractedConfirmation> extractFromPdf(Attachment attachment) async {
 
   final bytes = await file.readAsBytes();
   final uri = Uri.parse('http://${settings.piAddress}:${settings.piPort}/sync/extract');
+  final contentType = isPdf
+      ? 'application/pdf'
+      : attachment.mimeType.startsWith('image/')
+          ? attachment.mimeType
+          : 'image/jpeg';
 
   try {
     final response = await http
         .post(
           uri,
           headers: {
-            'Content-Type': 'application/pdf',
+            'Content-Type': contentType,
             'X-Device-ID': settings.deviceId,
             if (settings.syncPassword.isNotEmpty) 'X-Sync-Password': settings.syncPassword,
           },
@@ -287,6 +295,9 @@ Future<ExtractedConfirmation> extractFromPdf(Attachment attachment) async {
     final scanned = decoded['scanned'] == true;
     final text = (decoded['text'] as String?) ?? '';
     return const ConfirmationParser().parse(text, scanned: scanned);
+  } on http.ClientException {
+    // Pi unreachable - not worth blocking the upload.
+    return const ExtractedConfirmation();
   } catch (_) {
     // Pi unreachable, or extraction failed. Not worth blocking the upload.
     return const ExtractedConfirmation();
