@@ -226,3 +226,28 @@ String formatMoney(double amount, String currency) {
   final symbol = symbols[currency.toUpperCase()] ?? currency.toUpperCase();
   return NumberFormat.currency(symbol: symbol, decimalDigits: amount >= 1000 ? 0 : 2).format(amount);
 }
+
+/// Picks which trip an expense should default to.
+///
+/// Without this, expenses landed with trip_id = null and silently counted
+/// towards nothing - which quietly broke the whole budget picture. Order of
+/// preference: the trip you are actually on, then the next one starting,
+/// then the most recently updated.
+Trip? defaultTripFor(List<Trip> trips, {DateTime? now}) {
+  if (trips.isEmpty) return null;
+  final at = now ?? DateTime.now();
+
+  // Currently travelling: departure has passed, return date has not.
+  for (final t in trips) {
+    if (!t.departure.isAfter(at) && t.returnDate.isAfter(at)) return t;
+  }
+
+  // Next one to depart.
+  final upcoming = trips.where((t) => t.departure.isAfter(at)).toList()
+    ..sort((a, b) => a.departure.compareTo(b.departure));
+  if (upcoming.isNotEmpty) return upcoming.first;
+
+  // Everything is past - most recently updated.
+  final sorted = [...trips]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  return sorted.first;
+}

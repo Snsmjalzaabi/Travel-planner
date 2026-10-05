@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/database_helper.dart';
 import '../models/models.dart';
 import '../services/currency_service.dart';
+import '../services/budget_service.dart';
 
 /// The one expense form. Both the Expenses tab and More -> Quick Add use this,
 /// so category, trip and currency behave identically everywhere.
@@ -23,11 +24,34 @@ Future<bool> showExpenseSheet(
   final otherCommentCtrl = TextEditingController(text: expense?.notes ?? '');
   String currency = expense?.currency ?? 'AED';
   String category = normalizeExpenseCategory(expense?.category ?? 'transportation');
-  int? tripId = expense?.tripId ?? initialTripId;
-
   final conn = await db.database;
-  final tripRows = await conn.query('trips', orderBy: 'departure ASC');
+  final tripRows = await conn.query(
+    'trips',
+    where: 'deleted_at IS NULL',
+    orderBy: 'departure ASC',
+  );
   final trips = tripRows.map(Trip.fromMap).toList();
+
+  // Expenses used to default to "No trip", which meant they counted towards
+  // no budget at all. Fall back to the trip you are actually on, or the next
+  // one starting, so spend lands where it belongs by default.
+  int? tripId = expense?.tripId ?? initialTripId ?? defaultTripFor(trips)?.id;
+
+  // Live budget context for the selected trip, so it is obvious which budget
+  // this expense is being charged against before saving.
+  final existingRows = await conn.query('expenses', where: 'deleted_at IS NULL');
+  final allExpenses = existingRows.map(Expense.fromMap).toList();
+  final fx = CurrencyService();
+
+  Future<BudgetBreakdown?> budgetFor(int? id) async {
+    if (id == null) return null;
+    Trip? match;
+    for (final x in trips) {
+      if (x.id == id) match = x;
+    }
+    if (match == null) return null;
+    return const BudgetService().build(match, allExpenses, currency: fx);
+  }
 
   if (!context.mounted) return false;
 
@@ -88,14 +112,32 @@ Future<bool> showExpenseSheet(
                   initialValue: trips.any((x) => x.id == tripId) ? tripId : null,
                   decoration: const InputDecoration(
                     labelText: 'Trip',
-                    helperText: 'Links this spend to a trip budget',
+                    helperText: 'Charged against this trip budget',
                     border: OutlineInputBorder(),
                   ),
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('No trip')),
+                    const DropdownMenuItem(value: null, child: Text('No trip (untracked)')),
                     ...trips.map((x) => DropdownMenuItem(value: x.id, child: Text(x.name, overflow: TextOverflow.ellipsis))),
                   ],
                   onChanged: (v) => setModalState(() => tripId = v),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<BudgetBreakdown?>(
+                  future: budgetFor(tripId),
+                  builder: (context, snap) {
+                    final b = snap.data;
+                    if (b == null) return const SizedBox.shrink();
+                    var currency = trips.first.baseCurrency;
+                    for (final x in trips) {
+                      if (x.id == tripId) currency = x.baseCurrency;
+                    }
+                    return _BudgetContext(
+                      spent: b.spent,
+                      budget: b.budget,
+                      remaining: b.remaining,
+                      currency: currency,
+                    );
+                  },
                 ),
               ],
               const SizedBox(height: 12),
@@ -210,4 +252,68 @@ String normalizeExpenseCategory(String category) {
   if (c == 'transport') return 'transportation';
   if (kExpenseCategories.contains(c)) return c;
   return 'other';
+}
+
+/// Shows what the selected trip's budget looks like right now, so it is clear
+/// which budget this expense is hitting before you save it.
+class _BudgetContext extends StatelessWidget {
+  final double spent;
+  final double budget;
+  final double remaining;
+  final String currency;
+
+  const _BudgetContext({
+    required this.spent,
+    required this.budget,
+    required this.remaining,
+    required this.currency,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasBudget = budget > 0;
+    final over = hasBudget && remaining < 0;
+    final color = !hasBudget
+        ? Colors.grey
+        : over
+            ? Colors.red
+            : remaining < budget * 0.2
+                ? Colors.orange
+                : Colors.green;
+
+    final label = !hasBudget
+        ? 'This trip has no budget set'
+        : over
+            ? 'Already ${formatMoney(remaining.abs(), currency)} OVER budget'
+            : '${formatMoney(remaining, currency)} left of ${formatMoney(budget, currency)}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            !hasBudget
+                ? Icons.info_outline
+                : over
+                    ? Icons.error_outline
+                    : Icons.account_balance_wallet_outlined,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label • ${formatMoney(spent, currency)} spent',
+              style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
